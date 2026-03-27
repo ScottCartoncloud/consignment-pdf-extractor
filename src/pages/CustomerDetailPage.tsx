@@ -411,48 +411,6 @@ const CustomerDetailPage = () => {
           </TabsContent>
         )}
 
-        {/* ─── HISTORY TAB ─── */}
-        {!isNew && (
-          <TabsContent value="history">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Consignment History</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {drafts.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8">No consignments yet for this customer.</p>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Source</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>From Email</TableHead>
-                        <TableHead>Error</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {drafts.map((d) => (
-                        <TableRow key={d.id}>
-                          <TableCell className="text-sm">{new Date(d.created_at).toLocaleString()}</TableCell>
-                          <TableCell><Badge variant="outline">{d.source}</Badge></TableCell>
-                          <TableCell>
-                            <Badge variant={d.status === "submitted" ? "default" : d.status === "failed" ? "destructive" : "secondary"}>
-                              {d.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{d.from_email || "—"}</TableCell>
-                          <TableCell className="text-sm text-destructive">{d.error_message || ""}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        )}
       </Tabs>
     </div>
   );
