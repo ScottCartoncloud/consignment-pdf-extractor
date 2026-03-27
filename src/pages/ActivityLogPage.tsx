@@ -155,6 +155,7 @@ const ActivityLogPage = () => {
                 </PopoverContent>
               </Popover>
             </div>
+            </div>
 
             {/* Reference search */}
             <div className="space-y-1">
