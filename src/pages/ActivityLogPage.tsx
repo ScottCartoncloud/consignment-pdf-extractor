@@ -188,7 +188,7 @@ const ActivityLogPage = () => {
             </div>
 
             {/* Status filter */}
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <Label className="text-xs">Status</Label>
               <Select value={filterStatus} onValueChange={setFilterStatus}>
                 <SelectTrigger className="w-[130px]">
