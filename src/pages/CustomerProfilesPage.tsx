@@ -38,7 +38,8 @@ const CustomerProfilesPage = () => {
   const [editingProfile, setEditingProfile] = useState<CustomerProfile | null>(null);
   const [form, setForm] = useState({ customer_name: "", cc_customer_id: "", inbound_email_slug: "", extraction_hints: "" });
   const [sampleExtraction, setSampleExtraction] = useState<ConsignmentPayload | null>(null);
-  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  const [pdfDataUrl, setPdfDataUrl] = useState<string | null>(null);
+  const [lastPdfBase64, setLastPdfBase64] = useState<string | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
