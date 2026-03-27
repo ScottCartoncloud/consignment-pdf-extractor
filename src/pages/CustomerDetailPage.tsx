@@ -347,11 +347,23 @@ const CustomerDetailPage = () => {
             </Card>
           )}
 
+          <Card>
+            <CardContent className="pt-4 space-y-2">
+              <Label className="flex items-center gap-2"><Lightbulb className="h-4 w-4 text-primary" /> Extraction Hints</Label>
+              <Textarea
+                value={form.extraction_hints}
+                onChange={(e) => setForm((f) => ({ ...f, extraction_hints: e.target.value }))}
+                placeholder='e.g. "Weight is always in kg. The collect address is the sender in the top-left."'
+                rows={3}
+              />
+            </CardContent>
+          </Card>
+
           {sampleExtraction && sampleBase64 && (
             <Card className="border-primary/20 bg-primary/5">
               <CardContent className="pt-4 space-y-2">
                 <p className="text-xs text-muted-foreground">
-                  Did the AI get anything wrong? Update extraction hints on the Profile tab, then re-extract.
+                  Did the AI get anything wrong? Update the hints above, then re-extract.
                 </p>
                 <Button size="sm" variant="outline" disabled={isSampleExtracting} onClick={reExtractSample}>
                   {isSampleExtracting ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <RefreshCw className="h-3 w-3 mr-2" />}
