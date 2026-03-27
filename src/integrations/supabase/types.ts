@@ -16,31 +16,43 @@ export type Database = {
     Tables: {
       consignment_drafts: {
         Row: {
+          cc_response: Json | null
           created_at: string
           customer_profile_id: string | null
+          error_message: string | null
           from_email: string | null
           id: string
           mapped_payload: Json | null
           raw_extraction: Json | null
+          source: string
           status: string
+          submitted_at: string | null
         }
         Insert: {
+          cc_response?: Json | null
           created_at?: string
           customer_profile_id?: string | null
+          error_message?: string | null
           from_email?: string | null
           id?: string
           mapped_payload?: Json | null
           raw_extraction?: Json | null
+          source?: string
           status?: string
+          submitted_at?: string | null
         }
         Update: {
+          cc_response?: Json | null
           created_at?: string
           customer_profile_id?: string | null
+          error_message?: string | null
           from_email?: string | null
           id?: string
           mapped_payload?: Json | null
           raw_extraction?: Json | null
+          source?: string
           status?: string
+          submitted_at?: string | null
         }
         Relationships: [
           {
