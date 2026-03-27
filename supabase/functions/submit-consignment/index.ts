@@ -36,7 +36,7 @@ serve(async (req) => {
       // Use tenant-specific OAuth2 credentials
       const { data: tenant, error: tenantError } = await supabase
         .from("tenants")
-        .select("cc_api_base_url, cc_client_id, cc_client_secret, custom_field_schema")
+        .select("cc_api_base_url, cc_client_id, cc_client_secret, cc_tenant_id, custom_field_schema")
         .eq("id", tenantId)
         .single();
 
