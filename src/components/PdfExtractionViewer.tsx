@@ -139,7 +139,7 @@ const PdfExtractionViewer = ({
           </CardHeader>
           <CardContent className="p-0 h-full">
             {pdfDataUrl ? (
-              <embed src={pdfDataUrl} type="application/pdf" className="w-full" style={{ height: "calc(100% - 52px)", minHeight: "640px" }} />
+              <iframe src={pdfDataUrl} className="w-full border-0" style={{ height: "calc(100% - 52px)", minHeight: "640px" }} title="Uploaded PDF" />
             ) : (
               <div className="flex items-center justify-center h-full text-muted-foreground text-sm p-8">
                 <p>No PDF loaded. Upload a file to see it here.</p>
