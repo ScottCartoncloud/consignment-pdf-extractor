@@ -143,7 +143,7 @@ const ActivityLogPage = () => {
 
               <span className="text-sm text-muted-foreground">–</span>
 
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-4">
                 <Label className="text-xs whitespace-nowrap">To</Label>
                 <Popover>
                   <PopoverTrigger asChild>
