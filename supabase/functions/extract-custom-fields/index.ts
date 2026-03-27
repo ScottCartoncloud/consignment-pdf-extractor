@@ -28,7 +28,7 @@ Each row should become an object with these fields:
 - "mappedField": the mapped field path (e.g. "details.serviceType" or just the field name)
 - "tab": "${tab}"
 
-Return ONLY a valid JSON array, no markdown or explanation. If no fields are found, return an empty array [].`;
+Return a JSON object with a single "fields" key containing the array of extracted fields. Example format: { "fields": [ { "name": "...", ... } ] }. If no fields are found return { "fields": [] }.`;
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
