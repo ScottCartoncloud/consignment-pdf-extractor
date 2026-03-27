@@ -149,13 +149,13 @@ const CustomerDetailPage = () => {
         inbound_email_slug: form.inbound_email_slug,
         extraction_hints: form.extraction_hints || null,
         sample_extraction: sampleExtraction as any,
-        tenant_id: form.tenant_id,
+        tenant_id: tenantId,
       };
       if (isNew) {
         const { data, error } = await supabase.from("customer_profiles").insert(row).select().single();
         if (error) throw error;
         toast({ title: "Profile created" });
-        navigate(`/profiles/${data.id}`, { replace: true });
+        navigate(`/tenants/${tenantId}/customers/${data.id}`, { replace: true });
       } else {
         const { error } = await supabase.from("customer_profiles").update(row).eq("id", id!);
         if (error) throw error;
