@@ -244,7 +244,7 @@ const CustomerDetailPage = () => {
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="sample">Sample Mapping</TabsTrigger>
           {!isNew && <TabsTrigger value="upload">Upload Invoice</TabsTrigger>}
-          {!isNew && <TabsTrigger value="history">History</TabsTrigger>}
+          
         </TabsList>
 
         {/* ─── PROFILE TAB ─── */}
