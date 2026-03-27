@@ -24,6 +24,7 @@ const App = () => (
           <main className="flex-1">
             <Routes>
               <Route path="/" element={<UploadPage />} />
+              <Route path="/profiles" element={<CustomerProfilesPage />} />
               <Route path="/review" element={<ReviewPage />} />
               <Route path="/email-mappings" element={<EmailMappingsPage />} />
               <Route path="/settings" element={<SettingsPage />} />
