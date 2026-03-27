@@ -52,10 +52,7 @@ const CustomerProfilesPage = () => {
 
   useEffect(() => { fetchProfiles(); }, []);
 
-  // Clean up blob URL on unmount
-  useEffect(() => {
-    return () => { if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl); };
-  }, [pdfBlobUrl]);
+  // No cleanup needed for data URLs
 
   const openCreate = () => {
     setEditingProfile(null);
