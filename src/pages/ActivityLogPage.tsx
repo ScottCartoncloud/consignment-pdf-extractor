@@ -66,7 +66,7 @@ const ActivityLogPage = () => {
     let query = supabase
       .from("consignment_drafts")
       .select("id, status, source, created_at, from_email, error_message, customer_profile_id, mapped_payload, cc_response, raw_extraction", { count: "exact" })
-      .order("created_at", { ascending: false });
+      .in("status", filterStatus !== "all" ? [filterStatus] : ["submitted", "failed"])
 
     if (filterCustomer !== "all") query = query.eq("customer_profile_id", filterCustomer);
     if (filterStatus !== "all") query = query.eq("status", filterStatus);
