@@ -282,7 +282,7 @@ const TenantDetailPage = () => {
                         <TableRow key={c.id} className="cursor-pointer" onClick={() => navigate(`/tenants/${id}/customers/${c.id}`)}>
                           <TableCell className="font-medium">{c.customer_name}</TableCell>
                           <TableCell>{c.cc_customer_id}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{c.inbound_email_slug}@notify.yourdomain.com</TableCell>
+                          <TableCell className="text-sm text-muted-foreground"><TableCell className="text-sm text-muted-foreground">{c.inbound_email_slug}@inbound.cloudy-pdf.com</TableCell></TableCell>
                           <TableCell>
                             <Badge variant={c.sample_extraction ? "default" : "outline"}>
                               {c.sample_extraction ? "Verified" : "None"}
