@@ -30,6 +30,7 @@ interface CustomField {
   fieldName: string;
   mappedField: string;
   tab: "consignmentData" | "consignmentItem";
+  dontSend?: boolean;
 }
 
 const TenantDetailPage = () => {
