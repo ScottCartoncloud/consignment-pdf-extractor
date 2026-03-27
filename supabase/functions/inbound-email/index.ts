@@ -6,6 +6,45 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function setNestedValue(obj: any, path: string, value: any) {
+  const keys = path.split(".");
+  let current = obj;
+  for (let i = 0; i < keys.length - 1; i++) {
+    if (!current[keys[i]]) current[keys[i]] = {};
+    current = current[keys[i]];
+  }
+  current[keys[keys.length - 1]] = value;
+}
+
+const normalizeStateName = (value: string | undefined) => {
+  if (!value) return undefined;
+  const raw = value.trim();
+  const upper = raw.toUpperCase();
+  const map: Record<string, string> = {
+    NSW: "New South Wales",
+    VIC: "Victoria",
+    QLD: "Queensland",
+    SA: "South Australia",
+    WA: "Western Australia",
+    TAS: "Tasmania",
+    NT: "Northern Territory",
+    ACT: "Australian Capital Territory",
+  };
+  return map[upper] || raw;
+};
+
+const toAddressObj = (addr: any, fallbackCompanyName = "") => {
+  const stateName = normalizeStateName(addr?.state);
+  return {
+    companyName: addr?.companyName?.trim() || addr?.contactName?.trim() || fallbackCompanyName,
+    address1: addr?.address1 || "",
+    suburb: addr?.suburb || "",
+    ...(stateName ? { state: { name: stateName } } : {}),
+    postcode: addr?.postcode || "",
+    country: { name: addr?.country || "Australia" },
+  };
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -30,7 +69,7 @@ serve(async (req) => {
     // Look up customer profile by slug
     const { data: profile } = await supabase
       .from("customer_profiles")
-      .select("id, tenant_id, extraction_hints")
+      .select("id, tenant_id, extraction_hints, cc_customer_id")
       .eq("inbound_email_slug", slug)
       .maybeSingle();
 
@@ -41,9 +80,10 @@ serve(async (req) => {
       });
     }
 
-    // Find first PDF attachment
+    // Find first PDF attachment (by ContentType or file extension)
     const pdfAttachment = (payload.Attachments || []).find(
-      (a: any) => a.ContentType === "application/pdf"
+      (a: any) => a.ContentType === "application/pdf" ||
+        a.Name?.toLowerCase().endsWith(".pdf")
     );
     if (!pdfAttachment) {
       return new Response(JSON.stringify({ error: "no PDF attachment" }), {
@@ -55,16 +95,19 @@ serve(async (req) => {
     const pdfBase64 = pdfAttachment.Content;
     const customerProfileId = profile.id;
     const tenantId = profile.tenant_id;
+    const ccCustomerId = profile.cc_customer_id;
     const hints = profile.extraction_hints || "";
 
-    // Fetch tenant's custom field schema if tenantId provided
+    // Fetch tenant data (credentials + custom field schema)
+    let tenant: any = null;
     let customFieldSchema: any[] = [];
     if (tenantId) {
-      const { data: tenant } = await supabase
+      const { data } = await supabase
         .from("tenants")
-        .select("custom_field_schema")
+        .select("cc_api_base_url, cc_client_id, cc_client_secret, cc_tenant_id, custom_field_schema")
         .eq("id", tenantId)
         .maybeSingle();
+      tenant = data;
       if (tenant?.custom_field_schema) {
         customFieldSchema = tenant.custom_field_schema as any[];
       }
@@ -170,12 +213,158 @@ Return them in a "customFields" object on the response, keyed by fieldName:
       .select()
       .single();
 
-    if (draftError) console.error("Failed to save draft:", draftError);
+    if (draftError) {
+      console.error("Failed to save draft:", draftError);
+      throw new Error("Failed to save consignment draft");
+    }
 
-    return new Response(JSON.stringify({ success: true, draftId: draft?.id }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    const draftId = draft.id;
+
+    // ─── Auto-submit to CartonCloud ───
+    try {
+      if (!tenant || !tenant.cc_client_id || !tenant.cc_client_secret) {
+        throw new Error("Tenant CartonCloud credentials not configured");
+      }
+
+      // OAuth2 client credentials flow
+      const tokenUrl = `${tenant.cc_api_base_url.replace(/\/$/, "")}/uaa/oauth/token`;
+      const basicAuth = btoa(`${tenant.cc_client_id}:${tenant.cc_client_secret}`);
+
+      const tokenResponse = await fetch(tokenUrl, {
+        method: "POST",
+        headers: {
+          "Authorization": `Basic ${basicAuth}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: "grant_type=client_credentials",
+      });
+
+      if (!tokenResponse.ok) {
+        const errText = await tokenResponse.text();
+        throw new Error(`OAuth token request failed: ${tokenResponse.status} - ${errText}`);
+      }
+
+      const tokenData = await tokenResponse.json();
+      const accessToken = tokenData.access_token;
+      const ccUrl = `${tenant.cc_api_base_url.replace(/\/$/, "")}/tenants/${tenant.cc_tenant_id}/consignments`;
+
+      // Apply custom field mappings
+      const customFields = extracted.customFields || {};
+      const submissionPayload = { ...extracted };
+
+      if (Object.keys(customFields).length > 0 && customFieldSchema.length > 0) {
+        if (!submissionPayload.details) submissionPayload.details = {};
+        if (!submissionPayload.properties) submissionPayload.properties = {};
+
+        for (const field of customFieldSchema) {
+          const value = customFields[field.fieldName];
+          if (value === undefined || value === "") continue;
+
+          if (field.tab === "consignmentItem") {
+            if (submissionPayload.items) {
+              for (const item of submissionPayload.items) {
+                if (!item.properties) item.properties = {};
+                item.properties[field.mappedField] = value;
+              }
+            }
+          } else if (field.mappedField && field.mappedField.includes(".")) {
+            setNestedValue(submissionPayload.details, field.mappedField, value);
+          } else if (field.mappedField) {
+            submissionPayload.properties[field.mappedField] = value;
+          }
+        }
+      }
+
+      delete submissionPayload.customFields;
+
+      // Build CartonCloud payload
+      const ccPayload = {
+        references: {
+          customer: submissionPayload.references?.customer || "",
+        },
+        customer: {
+          id: ccCustomerId,
+        },
+        details: {
+          collect: {
+            address: toAddressObj(submissionPayload.collectAddress, "Collect Address"),
+          },
+          deliver: {
+            address: toAddressObj(submissionPayload.deliverAddress, "Delivery Address"),
+            instructions: submissionPayload.deliverAddress?.instructions || "",
+          },
+          type: submissionPayload.type || "DELIVERY",
+          ...submissionPayload.details,
+        },
+        properties: submissionPayload.properties || {},
+        items: (submissionPayload.items || []).map((item: any) => ({
+          properties: {
+            description: item.description || "",
+            ...(item.properties || {}),
+          },
+          measures: {
+            quantity: item.quantity || 0,
+            weight: item.weight || 0,
+            pallets: item.pallets || 0,
+            spaces: item.spaces || 0,
+            cubic: item.length && item.width && item.height
+              ? parseFloat(((item.length * item.width * item.height) / 1000000 * item.quantity).toFixed(3))
+              : 0,
+          },
+        })),
+      };
+
+      const ccResponse = await fetch(ccUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${accessToken}`,
+          "Accept-Version": "1",
+        },
+        body: JSON.stringify(ccPayload),
+      });
+
+      const ccText = await ccResponse.text();
+      let ccData: any;
+      try { ccData = JSON.parse(ccText); } catch { ccData = { rawBody: ccText }; }
+
+      console.log("CC response status:", ccResponse.status);
+
+      if (!ccResponse.ok) {
+        const errorDetail = typeof ccData === "object" ? JSON.stringify(ccData) : ccText;
+        await supabase
+          .from("consignment_drafts")
+          .update({ status: "failed", mapped_payload: ccPayload, error_message: errorDetail.slice(0, 2000) })
+          .eq("id", draftId);
+
+        return new Response(JSON.stringify({ success: false, draftId, error: "CartonCloud submission failed" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Success
+      await supabase
+        .from("consignment_drafts")
+        .update({ status: "submitted", mapped_payload: ccPayload, cc_response: ccData, submitted_at: new Date().toISOString() })
+        .eq("id", draftId);
+
+      return new Response(JSON.stringify({ success: true, draftId }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    } catch (submitErr) {
+      console.error("Auto-submit failed:", submitErr);
+      await supabase
+        .from("consignment_drafts")
+        .update({ status: "failed", error_message: (submitErr instanceof Error ? submitErr.message : "Unknown submission error").slice(0, 2000) })
+        .eq("id", draftId);
+
+      return new Response(JSON.stringify({ success: false, draftId, error: "auto-submit failed" }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
   } catch (e) {
     console.error("inbound-email error:", e);
     // Always return 200 to prevent Postmark retries
