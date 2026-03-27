@@ -38,7 +38,8 @@ const CustomerProfilesPage = () => {
   const [editingProfile, setEditingProfile] = useState<CustomerProfile | null>(null);
   const [form, setForm] = useState({ customer_name: "", cc_customer_id: "", inbound_email_slug: "", extraction_hints: "" });
   const [sampleExtraction, setSampleExtraction] = useState<ConsignmentPayload | null>(null);
-  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  const [pdfDataUrl, setPdfDataUrl] = useState<string | null>(null);
+  const [lastPdfBase64, setLastPdfBase64] = useState<string | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -51,16 +52,14 @@ const CustomerProfilesPage = () => {
 
   useEffect(() => { fetchProfiles(); }, []);
 
-  // Clean up blob URL on unmount
-  useEffect(() => {
-    return () => { if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl); };
-  }, [pdfBlobUrl]);
+  // No cleanup needed for data URLs
 
   const openCreate = () => {
     setEditingProfile(null);
     setForm({ customer_name: "", cc_customer_id: "", inbound_email_slug: "", extraction_hints: "" });
     setSampleExtraction(null);
-    setPdfBlobUrl(null);
+    setPdfDataUrl(null);
+    setLastPdfBase64(null);
     setView("form");
   };
 
@@ -73,7 +72,8 @@ const CustomerProfilesPage = () => {
       extraction_hints: p.extraction_hints || "",
     });
     setSampleExtraction(p.sample_extraction as ConsignmentPayload | null);
-    setPdfBlobUrl(null);
+    setPdfDataUrl(null);
+    setLastPdfBase64(null);
     setView("form");
   };
 
@@ -91,11 +91,6 @@ const CustomerProfilesPage = () => {
       return;
     }
 
-    // Create blob URL for the PDF viewer
-    if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
-    const blobUrl = URL.createObjectURL(file);
-    setPdfBlobUrl(blobUrl);
-
     setIsExtracting(true);
     try {
       const reader = new FileReader();
@@ -104,6 +99,10 @@ const CustomerProfilesPage = () => {
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
+
+      // Store base64 for PDF viewer and re-extract
+      setLastPdfBase64(base64);
+      setPdfDataUrl(`data:application/pdf;base64,${base64}`);
 
       const { data, error } = await supabase.functions.invoke("extract-consignment", {
         body: { pdfBase64: base64, extractionHints: form.extraction_hints || undefined },
@@ -118,7 +117,7 @@ const CustomerProfilesPage = () => {
     } finally {
       setIsExtracting(false);
     }
-  }, [form.extraction_hints, toast, pdfBlobUrl]);
+  }, [form.extraction_hints, toast]);
 
   const handleSampleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -228,7 +227,7 @@ const CustomerProfilesPage = () => {
         </Card>
 
         {/* Sample PDF section — upload or side-by-side */}
-        {!sampleExtraction && !isExtracting && !pdfBlobUrl ? (
+        {!sampleExtraction && !isExtracting && !pdfDataUrl ? (
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Sample PDF Verification</CardTitle>
@@ -268,12 +267,12 @@ const CustomerProfilesPage = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0 h-full">
-                  {pdfBlobUrl ? (
-                    <iframe
-                      src={pdfBlobUrl}
-                      className="w-full border-0"
+                  {pdfDataUrl ? (
+                    <embed
+                      src={pdfDataUrl}
+                      type="application/pdf"
+                      className="w-full"
                       style={{ height: "calc(100% - 52px)", minHeight: "640px" }}
-                      title="Sample PDF"
                     />
                   ) : (
                     <div className="flex items-center justify-center h-full text-muted-foreground text-sm p-8">
@@ -376,15 +375,33 @@ const CustomerProfilesPage = () => {
               placeholder='e.g. "Weight is always in kg, not grams. The collect address is the sender in the top-left. Ignore rows where description contains TOTAL."'
               rows={4}
             />
-            {sampleExtraction && pdfBlobUrl && (
+            {sampleExtraction && lastPdfBase64 && (
               <div className="flex items-center gap-2 pt-1">
-                <label className="cursor-pointer">
-                  <Button size="sm" variant="outline" asChild>
-                    <span><RefreshCw className="h-3 w-3 mr-2" /> Re-extract with updated hints</span>
-                  </Button>
-                  <input type="file" accept=".pdf" className="hidden" onChange={handleSampleSelect} />
-                </label>
-                <p className="text-xs text-muted-foreground">Upload the same PDF again to test your hints</p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={isExtracting}
+                  onClick={async () => {
+                    setIsExtracting(true);
+                    try {
+                      const { data, error } = await supabase.functions.invoke("extract-consignment", {
+                        body: { pdfBase64: lastPdfBase64, extractionHints: form.extraction_hints || undefined },
+                      });
+                      if (error) throw error;
+                      if (data?.error) throw new Error(data.error);
+                      setSampleExtraction(data.extraction);
+                      toast({ title: "Re-extracted", description: "Check if the updated hints improved the results." });
+                    } catch (err: any) {
+                      toast({ title: "Extraction failed", description: err.message, variant: "destructive" });
+                    } finally {
+                      setIsExtracting(false);
+                    }
+                  }}
+                >
+                  {isExtracting ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <RefreshCw className="h-3 w-3 mr-2" />}
+                  Re-extract with updated hints
+                </Button>
+                <p className="text-xs text-muted-foreground">Uses the same PDF with your new hints</p>
               </div>
             )}
           </CardContent>
