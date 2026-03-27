@@ -8,11 +8,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 
 const SettingsPage = () => {
-  const [settings, setSettings] = useState({ cc_api_base_url: "", cc_api_key: "", claude_api_key: "" });
+  const [settings, setSettings] = useState({ cc_api_base_url: "", cc_api_key: "" });
   const [settingsId, setSettingsId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [showCcKey, setShowCcKey] = useState(false);
-  const [showClaudeKey, setShowClaudeKey] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
