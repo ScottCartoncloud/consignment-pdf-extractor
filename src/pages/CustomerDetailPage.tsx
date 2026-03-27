@@ -126,17 +126,7 @@ const CustomerDetailPage = () => {
     load();
   }, [id, isNew]);
 
-  // When tenant changes, load its schema
-  useEffect(() => {
-    if (!form.tenant_id) { setCustomFieldSchema([]); return; }
-    supabase.from("tenants").select("custom_field_schema").eq("id", form.tenant_id).single().then(({ data }) => {
-      if (data?.custom_field_schema) {
-        setCustomFieldSchema(data.custom_field_schema as unknown as CustomFieldDef[]);
-      } else {
-        setCustomFieldSchema([]);
-      }
-    });
-  }, [form.tenant_id]);
+  // tenant_id is now fixed from URL params, no need for dynamic schema loading
 
   const handleNameChange = (name: string) => {
     setForm((f) => ({
