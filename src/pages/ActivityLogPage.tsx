@@ -158,7 +158,7 @@ const ActivityLogPage = () => {
             </div>
 
             {/* Reference search */}
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <Label className="text-xs">Reference</Label>
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
