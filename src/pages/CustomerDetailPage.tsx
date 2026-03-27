@@ -115,14 +115,6 @@ const CustomerDetailPage = () => {
           tenant_id: p.tenant_id || tenantId || "",
         });
         setSampleExtraction(p.sample_extraction as ConsignmentPayload | null);
-
-        // Load tenant's custom field schema
-        if (p.tenant_id) {
-          const { data: tenant } = await supabase.from("tenants").select("custom_field_schema").eq("id", p.tenant_id).single();
-          if (tenant?.custom_field_schema) {
-            setCustomFieldSchema(tenant.custom_field_schema as unknown as CustomFieldDef[]);
-          }
-        }
       }
       const { data: draftData } = await supabase
         .from("consignment_drafts")
