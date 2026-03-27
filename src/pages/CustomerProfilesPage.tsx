@@ -377,13 +377,31 @@ const CustomerProfilesPage = () => {
             />
             {sampleExtraction && lastPdfBase64 && (
               <div className="flex items-center gap-2 pt-1">
-                <label className="cursor-pointer">
-                  <Button size="sm" variant="outline" asChild>
-                    <span><RefreshCw className="h-3 w-3 mr-2" /> Re-extract with updated hints</span>
-                  </Button>
-                  <input type="file" accept=".pdf" className="hidden" onChange={handleSampleSelect} />
-                </label>
-                <p className="text-xs text-muted-foreground">Upload the same PDF again to test your hints</p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={isExtracting}
+                  onClick={async () => {
+                    setIsExtracting(true);
+                    try {
+                      const { data, error } = await supabase.functions.invoke("extract-consignment", {
+                        body: { pdfBase64: lastPdfBase64, extractionHints: form.extraction_hints || undefined },
+                      });
+                      if (error) throw error;
+                      if (data?.error) throw new Error(data.error);
+                      setSampleExtraction(data.extraction);
+                      toast({ title: "Re-extracted", description: "Check if the updated hints improved the results." });
+                    } catch (err: any) {
+                      toast({ title: "Extraction failed", description: err.message, variant: "destructive" });
+                    } finally {
+                      setIsExtracting(false);
+                    }
+                  }}
+                >
+                  {isExtracting ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <RefreshCw className="h-3 w-3 mr-2" />}
+                  Re-extract with updated hints
+                </Button>
+                <p className="text-xs text-muted-foreground">Uses the same PDF with your new hints</p>
               </div>
             )}
           </CardContent>
