@@ -1,9 +1,10 @@
 import { NavLink } from "react-router-dom";
-import { Upload, FileSearch, Mail, Settings } from "lucide-react";
+import { Upload, FileSearch, Users, Mail, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const links = [
   { to: "/", icon: Upload, label: "Upload" },
+  { to: "/profiles", icon: Users, label: "Customer Profiles" },
   { to: "/review", icon: FileSearch, label: "Review" },
   { to: "/email-mappings", icon: Mail, label: "Email Mappings" },
   { to: "/settings", icon: Settings, label: "Settings" },

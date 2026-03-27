@@ -17,6 +17,7 @@ export type Database = {
       consignment_drafts: {
         Row: {
           created_at: string
+          customer_profile_id: string | null
           from_email: string | null
           id: string
           mapped_payload: Json | null
@@ -25,6 +26,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          customer_profile_id?: string | null
           from_email?: string | null
           id?: string
           mapped_payload?: Json | null
@@ -33,11 +35,50 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          customer_profile_id?: string | null
           from_email?: string | null
           id?: string
           mapped_payload?: Json | null
           raw_extraction?: Json | null
           status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consignment_drafts_customer_profile_id_fkey"
+            columns: ["customer_profile_id"]
+            isOneToOne: false
+            referencedRelation: "customer_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_profiles: {
+        Row: {
+          cc_customer_id: string
+          created_at: string
+          customer_name: string
+          extraction_hints: string | null
+          id: string
+          inbound_email_slug: string
+          sample_extraction: Json | null
+        }
+        Insert: {
+          cc_customer_id: string
+          created_at?: string
+          customer_name: string
+          extraction_hints?: string | null
+          id?: string
+          inbound_email_slug: string
+          sample_extraction?: Json | null
+        }
+        Update: {
+          cc_customer_id?: string
+          created_at?: string
+          customer_name?: string
+          extraction_hints?: string | null
+          id?: string
+          inbound_email_slug?: string
+          sample_extraction?: Json | null
         }
         Relationships: []
       }
@@ -46,6 +87,7 @@ export type Database = {
           cc_customer_id: string
           cc_customer_name: string
           created_at: string
+          customer_profile_id: string | null
           from_email: string
           id: string
         }
@@ -53,6 +95,7 @@ export type Database = {
           cc_customer_id: string
           cc_customer_name: string
           created_at?: string
+          customer_profile_id?: string | null
           from_email: string
           id?: string
         }
@@ -60,10 +103,19 @@ export type Database = {
           cc_customer_id?: string
           cc_customer_name?: string
           created_at?: string
+          customer_profile_id?: string | null
           from_email?: string
           id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "email_customer_mappings_customer_profile_id_fkey"
+            columns: ["customer_profile_id"]
+            isOneToOne: false
+            referencedRelation: "customer_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       settings: {
         Row: {

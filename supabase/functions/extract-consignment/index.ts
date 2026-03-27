@@ -10,7 +10,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { pdfBase64 } = await req.json();
+    const { pdfBase64, customerProfileId, extractionHints } = await req.json();
     if (!pdfBase64) throw new Error("pdfBase64 is required");
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -21,7 +21,20 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const systemPrompt = `You are a consignment data extraction assistant. Given a PDF document, extract consignment/delivery information and return a JSON object matching this exact structure:
+    // Fetch extraction hints from profile if provided
+    let hints = extractionHints || "";
+    if (customerProfileId && !hints) {
+      const { data: profile } = await supabase
+        .from("customer_profiles")
+        .select("extraction_hints")
+        .eq("id", customerProfileId)
+        .maybeSingle();
+      if (profile?.extraction_hints) {
+        hints = profile.extraction_hints;
+      }
+    }
+
+    let systemPrompt = `You are a consignment data extraction assistant. Given a PDF document, extract consignment/delivery information and return a JSON object matching this exact structure:
 
 {
   "collectAddress": { "companyName": "", "address1": "", "suburb": "", "state": "", "postcode": "", "country": "Australia" },
@@ -40,6 +53,10 @@ Rules:
 - Default type to "DELIVERY"
 - Return ONLY valid JSON, no markdown or explanation`;
 
+    if (hints) {
+      systemPrompt += `\n\nAdditional context for this customer: ${hints}`;
+    }
+
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -55,9 +72,7 @@ Rules:
             content: [
               {
                 type: "image_url",
-                image_url: {
-                  url: `data:application/pdf;base64,${pdfBase64}`,
-                },
+                image_url: { url: `data:application/pdf;base64,${pdfBase64}` },
               },
               {
                 type: "text",
@@ -73,24 +88,18 @@ Rules:
     if (!aiResponse.ok) {
       const errText = await aiResponse.text();
       console.error("AI gateway error:", aiResponse.status, errText);
-      if (aiResponse.status === 429) {
-        throw new Error("Rate limit exceeded. Please try again in a moment.");
-      }
-      if (aiResponse.status === 402) {
-        throw new Error("AI credits exhausted. Please add funds in Settings > Workspace > Usage.");
-      }
+      if (aiResponse.status === 429) throw new Error("Rate limit exceeded. Please try again in a moment.");
+      if (aiResponse.status === 402) throw new Error("AI credits exhausted. Please add funds in Settings > Workspace > Usage.");
       throw new Error(`AI gateway error: ${aiResponse.status}`);
     }
 
     const aiData = await aiResponse.json();
     const textContent = aiData.choices?.[0]?.message?.content;
-
     if (!textContent) throw new Error("No response from AI");
 
-    // Parse JSON from response (handle potential markdown wrapping)
     let extracted;
     try {
-      const jsonMatch = textContent.match(/```json\s*([\s\S]*?)\s*```/) || 
+      const jsonMatch = textContent.match(/```json\s*([\s\S]*?)\s*```/) ||
                          textContent.match(/```\s*([\s\S]*?)\s*```/);
       extracted = JSON.parse(jsonMatch ? jsonMatch[1] : textContent);
     } catch {
@@ -105,6 +114,7 @@ Rules:
         mapped_payload: extracted,
         status: "draft",
         from_email: extracted.fromEmail || "",
+        customer_profile_id: customerProfileId || null,
       })
       .select()
       .single();

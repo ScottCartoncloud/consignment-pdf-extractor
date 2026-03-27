@@ -1,16 +1,33 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Upload, FileText, Loader2 } from "lucide-react";
+import { Upload, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+
+interface ProfileOption {
+  id: string;
+  customer_name: string;
+}
 
 const UploadPage = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [profiles, setProfiles] = useState<ProfileOption[]>([]);
+  const [selectedProfileId, setSelectedProfileId] = useState<string>("");
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  useEffect(() => {
+    const load = async () => {
+      const { data } = await supabase.from("customer_profiles").select("id, customer_name").order("customer_name");
+      if (data) setProfiles(data as ProfileOption[]);
+    };
+    load();
+  }, []);
 
   const processFile = useCallback(async (file: File) => {
     if (file.type !== "application/pdf") {
@@ -22,17 +39,15 @@ const UploadPage = () => {
     try {
       const reader = new FileReader();
       const base64 = await new Promise<string>((resolve, reject) => {
-        reader.onload = () => {
-          const result = reader.result as string;
-          resolve(result.split(",")[1]);
-        };
+        reader.onload = () => resolve((reader.result as string).split(",")[1]);
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
 
-      const { data, error } = await supabase.functions.invoke("extract-consignment", {
-        body: { pdfBase64: base64 },
-      });
+      const body: any = { pdfBase64: base64 };
+      if (selectedProfileId && selectedProfileId !== "none") body.customerProfileId = selectedProfileId;
+
+      const { data, error } = await supabase.functions.invoke("extract-consignment", { body });
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -44,7 +59,7 @@ const UploadPage = () => {
     } finally {
       setIsProcessing(false);
     }
-  }, [navigate, toast]);
+  }, [navigate, toast, selectedProfileId]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -64,7 +79,25 @@ const UploadPage = () => {
         <CardHeader>
           <CardTitle className="text-xl">Upload Consignment PDF</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {profiles.length > 0 && (
+            <div className="space-y-2">
+              <Label>Customer Profile (optional)</Label>
+              <Select value={selectedProfileId} onValueChange={setSelectedProfileId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Auto-detect (no profile)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Auto-detect (no profile)</SelectItem>
+                  {profiles.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.customer_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">Selecting a profile uses customer-specific extraction hints for better accuracy.</p>
+            </div>
+          )}
+
           {isProcessing ? (
             <div className="flex flex-col items-center justify-center py-16 gap-4">
               <Loader2 className="h-12 w-12 animate-spin text-primary" />
