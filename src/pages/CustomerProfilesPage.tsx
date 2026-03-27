@@ -267,12 +267,12 @@ const CustomerProfilesPage = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0 h-full">
-                  {pdfBlobUrl ? (
-                    <iframe
-                      src={pdfBlobUrl}
-                      className="w-full border-0"
+                  {pdfDataUrl ? (
+                    <embed
+                      src={pdfDataUrl}
+                      type="application/pdf"
+                      className="w-full"
                       style={{ height: "calc(100% - 52px)", minHeight: "640px" }}
-                      title="Sample PDF"
                     />
                   ) : (
                     <div className="flex items-center justify-center h-full text-muted-foreground text-sm p-8">
