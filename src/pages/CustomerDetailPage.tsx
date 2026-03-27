@@ -70,8 +70,6 @@ const CustomerDetailPage = () => {
   // Custom fields extracted values
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>({});
 
-  // History state
-  const [drafts, setDrafts] = useState<DraftRow[]>([]);
 
   useEffect(() => {
     // Load tenant's custom field schema directly using tenantId from URL
