@@ -13,20 +13,13 @@ serve(async (req) => {
     const { pdfBase64 } = await req.json();
     if (!pdfBase64) throw new Error("pdfBase64 is required");
 
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
-
-    const { data: settings, error: settingsError } = await supabase
-      .from("settings")
-      .select("claude_api_key")
-      .limit(1)
-      .single();
-
-    if (settingsError || !settings?.claude_api_key) {
-      throw new Error("Claude API key not configured in settings");
-    }
 
     const systemPrompt = `You are a consignment data extraction assistant. Given a PDF document, extract consignment/delivery information and return a JSON object matching this exact structure:
 
@@ -47,26 +40,23 @@ Rules:
 - Default type to "DELIVERY"
 - Return ONLY valid JSON, no markdown or explanation`;
 
-    const claudeResponse = await fetch("https://api.anthropic.com/v1/messages", {
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
+        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
-        "x-api-key": settings.claude_api_key,
-        "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 4096,
+        model: "google/gemini-2.5-pro",
         messages: [
+          { role: "system", content: systemPrompt },
           {
             role: "user",
             content: [
               {
-                type: "document",
-                source: {
-                  type: "base64",
-                  media_type: "application/pdf",
-                  data: pdfBase64,
+                type: "image_url",
+                image_url: {
+                  url: `data:application/pdf;base64,${pdfBase64}`,
                 },
               },
               {
@@ -76,20 +66,26 @@ Rules:
             ],
           },
         ],
-        system: systemPrompt,
+        response_format: { type: "json_object" },
       }),
     });
 
-    if (!claudeResponse.ok) {
-      const errText = await claudeResponse.text();
-      console.error("Claude API error:", claudeResponse.status, errText);
-      throw new Error(`Claude API error: ${claudeResponse.status}`);
+    if (!aiResponse.ok) {
+      const errText = await aiResponse.text();
+      console.error("AI gateway error:", aiResponse.status, errText);
+      if (aiResponse.status === 429) {
+        throw new Error("Rate limit exceeded. Please try again in a moment.");
+      }
+      if (aiResponse.status === 402) {
+        throw new Error("AI credits exhausted. Please add funds in Settings > Workspace > Usage.");
+      }
+      throw new Error(`AI gateway error: ${aiResponse.status}`);
     }
 
-    const claudeData = await claudeResponse.json();
-    const textContent = claudeData.content?.find((c: any) => c.type === "text")?.text;
+    const aiData = await aiResponse.json();
+    const textContent = aiData.choices?.[0]?.message?.content;
 
-    if (!textContent) throw new Error("No text response from Claude");
+    if (!textContent) throw new Error("No response from AI");
 
     // Parse JSON from response (handle potential markdown wrapping)
     let extracted;
@@ -98,7 +94,7 @@ Rules:
                          textContent.match(/```\s*([\s\S]*?)\s*```/);
       extracted = JSON.parse(jsonMatch ? jsonMatch[1] : textContent);
     } catch {
-      throw new Error("Failed to parse Claude response as JSON");
+      throw new Error("Failed to parse AI response as JSON");
     }
 
     // Save draft

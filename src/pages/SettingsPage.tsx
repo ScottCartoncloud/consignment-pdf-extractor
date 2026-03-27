@@ -8,18 +8,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 
 const SettingsPage = () => {
-  const [settings, setSettings] = useState({ cc_api_base_url: "", cc_api_key: "", claude_api_key: "" });
+  const [settings, setSettings] = useState({ cc_api_base_url: "", cc_api_key: "" });
   const [settingsId, setSettingsId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [showCcKey, setShowCcKey] = useState(false);
-  const [showClaudeKey, setShowClaudeKey] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     const load = async () => {
       const { data } = await supabase.from("settings").select("*").limit(1).single();
       if (data) {
-        setSettings({ cc_api_base_url: data.cc_api_base_url, cc_api_key: data.cc_api_key, claude_api_key: data.claude_api_key });
+        setSettings({ cc_api_base_url: data.cc_api_base_url, cc_api_key: data.cc_api_key });
         setSettingsId(data.id);
       }
     };
@@ -60,13 +59,6 @@ const SettingsPage = () => {
             <div className="flex gap-2">
               <Input type={showCcKey ? "text" : "password"} value={settings.cc_api_key} onChange={(e) => setSettings((s) => ({ ...s, cc_api_key: e.target.value }))} />
               <Button size="icon" variant="ghost" onClick={() => setShowCcKey(!showCcKey)}>{showCcKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label>Claude API Key</Label>
-            <div className="flex gap-2">
-              <Input type={showClaudeKey ? "text" : "password"} value={settings.claude_api_key} onChange={(e) => setSettings((s) => ({ ...s, claude_api_key: e.target.value }))} />
-              <Button size="icon" variant="ghost" onClick={() => setShowClaudeKey(!showClaudeKey)}>{showClaudeKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button>
             </div>
           </div>
           <Button onClick={save} disabled={saving} className="w-full">
