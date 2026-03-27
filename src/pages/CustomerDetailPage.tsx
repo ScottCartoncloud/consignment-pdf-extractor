@@ -90,11 +90,15 @@ const CustomerDetailPage = () => {
   const [drafts, setDrafts] = useState<DraftRow[]>([]);
 
   useEffect(() => {
-    // Load tenants
-    supabase.from("tenants").select("id, name").order("name").then(({ data }) => {
-      if (data) setTenants(data as TenantOption[]);
-    });
-  }, []);
+    // Load tenant's custom field schema directly using tenantId from URL
+    if (tenantId) {
+      supabase.from("tenants").select("custom_field_schema").eq("id", tenantId).single().then(({ data }) => {
+        if (data?.custom_field_schema) {
+          setCustomFieldSchema(data.custom_field_schema as unknown as CustomFieldDef[]);
+        }
+      });
+    }
+  }, [tenantId]);
 
   useEffect(() => {
     if (isNew) return;
