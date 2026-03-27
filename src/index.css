@@ -94,4 +94,42 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* ── Tabs ── */
+  [data-radix-collection-item][role="tab"] {
+    color: hsl(203 54% 24%);
+    font-weight: 500;
+    background: transparent;
+  }
+  [data-radix-collection-item][role="tab"][data-state="active"] {
+    color: hsl(220 77% 32%);
+    font-weight: 700;
+    background: #ffffff;
+    box-shadow: inset 0 -2px 0 hsl(220 77% 32%);
+  }
+  [role="tablist"] {
+    background: #e8edf2;
+    border-radius: 0.5rem;
+  }
+
+  /* ── Form inputs ── */
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  [role="combobox"] {
+    background-color: #ffffff !important;
+    border-color: #b0bec8 !important;
+    color: hsl(0 0% 11%) !important;
+  }
+  input:not([type="checkbox"]):not([type="radio"]):focus,
+  textarea:focus,
+  [role="combobox"]:focus {
+    border-color: hsl(220 77% 32%) !important;
+    --tw-ring-color: hsl(220 77% 32% / 0.25);
+  }
+
+  /* ── Labels ── */
+  label {
+    color: hsl(203 54% 24%);
+    font-weight: 500;
+  }
 }
