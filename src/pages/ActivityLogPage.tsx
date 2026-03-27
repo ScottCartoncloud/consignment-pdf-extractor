@@ -172,7 +172,7 @@ const ActivityLogPage = () => {
             </div>
 
             {/* Customer filter */}
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <Label className="text-xs">Customer</Label>
               <Select value={filterCustomer} onValueChange={setFilterCustomer}>
                 <SelectTrigger className="w-[180px]">
