@@ -145,7 +145,7 @@ const CustomerDetailPage = () => {
   };
 
   const copyEmail = () => {
-    navigator.clipboard.writeText(`${form.inbound_email_slug}@notify.yourdomain.com`);
+    navigator.clipboard.writeText(`${form.inbound_email_slug}@inbound.cloudy-pdf.com`);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
