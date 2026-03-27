@@ -26,8 +26,7 @@ const App = () => (
               <Route path="/" element={<Navigate to="/tenants" replace />} />
               <Route path="/tenants" element={<TenantsListPage />} />
               <Route path="/tenants/:id" element={<TenantDetailPage />} />
-              <Route path="/profiles" element={<CustomersListPage />} />
-              <Route path="/profiles/:id" element={<CustomerDetailPage />} />
+              <Route path="/tenants/:tenantId/customers/:id" element={<CustomerDetailPage />} />
               <Route path="/log" element={<ActivityLogPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="*" element={<NotFound />} />

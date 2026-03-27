@@ -295,22 +295,6 @@ const CustomerDetailPage = () => {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Tenant</Label>
-                <Select value={form.tenant_id} onValueChange={(v) => setForm((f) => ({ ...f, tenant_id: v }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a tenant" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tenants.map((t) => (
-                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {!isNew && profile?.tenant_id && (
-                  <p className="text-xs text-muted-foreground">Changing tenant will update the custom field schema used for extractions.</p>
-                )}
-              </div>
-              <div className="space-y-2">
                 <Label>Inbound Email Slug</Label>
                 <div className="flex items-center gap-2">
                   <Input value={form.inbound_email_slug} onChange={(e) => setForm((f) => ({ ...f, inbound_email_slug: e.target.value }))} />
