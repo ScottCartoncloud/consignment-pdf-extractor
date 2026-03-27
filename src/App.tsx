@@ -28,7 +28,7 @@ const App = () => (
               <Route path="/tenants/:id" element={<TenantDetailPage />} />
               <Route path="/tenants/:tenantId/customers/:id" element={<CustomerDetailPage />} />
               <Route path="/log" element={<ActivityLogPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
+              
               <Route path="*" element={<NotFound />} />
             </Routes>
           </main>
