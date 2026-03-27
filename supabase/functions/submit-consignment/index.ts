@@ -173,16 +173,23 @@ serve(async (req) => {
       body: JSON.stringify(ccPayload),
     });
 
-    const ccData = await ccResponse.json();
+    const ccText = await ccResponse.text();
+    let ccData: any;
+    try { ccData = JSON.parse(ccText); } catch { ccData = { rawBody: ccText }; }
+
+    console.log("CC response status:", ccResponse.status);
+    console.log("CC response body:", ccText);
+    console.log("CC request payload:", JSON.stringify(ccPayload, null, 2));
 
     if (!ccResponse.ok) {
+      const errorDetail = typeof ccData === "object" ? JSON.stringify(ccData) : ccText;
       if (draftId) {
         await supabase
           .from("consignment_drafts")
-          .update({ status: "failed", mapped_payload: ccPayload, error_message: ccData?.message || ccData?.error || `CartonCloud API error: ${ccResponse.status}` })
+          .update({ status: "failed", mapped_payload: ccPayload, error_message: errorDetail.slice(0, 2000) })
           .eq("id", draftId);
       }
-      throw new Error(ccData?.message || ccData?.error || `CartonCloud API error: ${ccResponse.status}`);
+      throw new Error(`CartonCloud API error ${ccResponse.status}: ${errorDetail.slice(0, 500)}`);
     }
 
     if (draftId) {
