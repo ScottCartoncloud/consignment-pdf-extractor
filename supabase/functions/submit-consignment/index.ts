@@ -36,7 +36,7 @@ serve(async (req) => {
       // Use tenant-specific OAuth2 credentials
       const { data: tenant, error: tenantError } = await supabase
         .from("tenants")
-        .select("cc_api_base_url, cc_client_id, cc_client_secret, custom_field_schema")
+        .select("cc_api_base_url, cc_client_id, cc_client_secret, cc_tenant_id, custom_field_schema")
         .eq("id", tenantId)
         .single();
 
@@ -64,7 +64,7 @@ serve(async (req) => {
 
       const tokenData = await tokenResponse.json();
       accessToken = tokenData.access_token;
-      ccUrl = `${tenant.cc_api_base_url.replace(/\/$/, "")}/consignments`;
+      ccUrl = `${tenant.cc_api_base_url.replace(/\/$/, "")}/tenants/${tenant.cc_tenant_id}/consignments`;
 
       // Apply custom field mappings to payload
       const customFields = payload.customFields || {};
@@ -112,13 +112,65 @@ serve(async (req) => {
       accessToken = settings.cc_api_key;
     }
 
+    // Transform internal payload to CartonCloud API format
+    const ccPayload = {
+      references: {
+        customer: payload.references?.customer || "",
+      },
+      customer: {
+        id: payload.ccCustomerId,
+      },
+      details: {
+        collect: {
+          address: {
+            companyName: payload.collectAddress?.companyName || "",
+            address1: payload.collectAddress?.address1 || "",
+            suburb: payload.collectAddress?.suburb || "",
+            state: payload.collectAddress?.state || "",
+            postcode: payload.collectAddress?.postcode || "",
+            country: payload.collectAddress?.country || "Australia",
+          },
+        },
+        deliver: {
+          address: {
+            companyName: payload.deliverAddress?.companyName || "",
+            address1: payload.deliverAddress?.address1 || "",
+            suburb: payload.deliverAddress?.suburb || "",
+            state: payload.deliverAddress?.state || "",
+            postcode: payload.deliverAddress?.postcode || "",
+            country: payload.deliverAddress?.country || "Australia",
+          },
+          instructions: payload.deliverAddress?.instructions || "",
+        },
+        type: payload.type || "DELIVERY",
+        ...payload.details, // includes any custom field dot-path values already set
+      },
+      properties: payload.properties || {},
+      items: (payload.items || []).map((item: any) => ({
+        properties: {
+          description: item.description || "",
+          ...(item.properties || {}),
+        },
+        measures: {
+          quantity: item.quantity || 0,
+          weight: item.weight || 0,
+          pallets: item.pallets || 0,
+          spaces: item.spaces || 0,
+          cubic: item.length && item.width && item.height
+            ? parseFloat(((item.length * item.width * item.height) / 1000000 * item.quantity).toFixed(3))
+            : 0,
+        },
+      })),
+    };
+
     const ccResponse = await fetch(ccUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${accessToken}`,
+        "Accept-Version": "1",
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(ccPayload),
     });
 
     const ccData = await ccResponse.json();
@@ -127,7 +179,7 @@ serve(async (req) => {
       if (draftId) {
         await supabase
           .from("consignment_drafts")
-          .update({ status: "failed", mapped_payload: payload, error_message: ccData?.message || ccData?.error || `CartonCloud API error: ${ccResponse.status}` })
+          .update({ status: "failed", mapped_payload: ccPayload, error_message: ccData?.message || ccData?.error || `CartonCloud API error: ${ccResponse.status}` })
           .eq("id", draftId);
       }
       throw new Error(ccData?.message || ccData?.error || `CartonCloud API error: ${ccResponse.status}`);
@@ -136,7 +188,7 @@ serve(async (req) => {
     if (draftId) {
       await supabase
         .from("consignment_drafts")
-        .update({ status: "submitted", mapped_payload: payload, cc_response: ccData, submitted_at: new Date().toISOString() })
+        .update({ status: "submitted", mapped_payload: ccPayload, cc_response: ccData, submitted_at: new Date().toISOString() })
         .eq("id", draftId);
     }
 

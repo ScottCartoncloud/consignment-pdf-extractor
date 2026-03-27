@@ -123,7 +123,7 @@ const TenantDetailPage = () => {
       });
 
       const { data, error } = await supabase.functions.invoke("extract-custom-fields", {
-        body: { imageBase64: base64, tab },
+        body: { imageBase64: base64, tab, mediaType: file.type },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);

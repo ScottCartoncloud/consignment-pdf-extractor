@@ -231,7 +231,7 @@ const CustomerDetailPage = () => {
     setIsSubmitting(true);
     setSubmitResult(null);
     try {
-      const payloadWithCustomFields = { ...uploadExtraction, customFields: customFieldValues };
+      const payloadWithCustomFields = { ...uploadExtraction, customFields: customFieldValues, ccCustomerId: form.cc_customer_id };
       const { data, error } = await supabase.functions.invoke("submit-consignment", {
         body: { payload: payloadWithCustomFields, draftId: uploadDraftId, tenantId: form.tenant_id },
       });

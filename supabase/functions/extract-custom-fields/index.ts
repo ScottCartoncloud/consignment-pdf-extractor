@@ -9,7 +9,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { imageBase64, tab } = await req.json();
+    const { imageBase64, tab, mediaType } = await req.json();
     if (!imageBase64) throw new Error("imageBase64 is required");
     if (!tab || !["consignmentData", "consignmentItem"].includes(tab)) {
       throw new Error("tab must be 'consignmentData' or 'consignmentItem'");
@@ -28,7 +28,7 @@ Each row should become an object with these fields:
 - "mappedField": the mapped field path (e.g. "details.serviceType" or just the field name)
 - "tab": "${tab}"
 
-Return ONLY a valid JSON array, no markdown or explanation. If no fields are found, return an empty array [].`;
+Return a JSON object with a single "fields" key containing the array of extracted fields. Example format: { "fields": [ { "name": "...", ... } ] }. If no fields are found return { "fields": [] }.`;
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -45,7 +45,7 @@ Return ONLY a valid JSON array, no markdown or explanation. If no fields are fou
             content: [
               {
                 type: "image_url",
-                image_url: { url: `data:image/png;base64,${imageBase64}` },
+                image_url: { url: `data:${mediaType || "image/png"};base64,${imageBase64}` },
               },
               {
                 type: "text",
@@ -76,7 +76,9 @@ Return ONLY a valid JSON array, no markdown or explanation. If no fields are fou
                          textContent.match(/```\s*([\s\S]*?)\s*```/);
       const parsed = JSON.parse(jsonMatch ? jsonMatch[1] : textContent);
       // Handle both array and { fields: [...] } responses
-      fields = Array.isArray(parsed) ? parsed : (parsed.fields || parsed.data || []);
+      fields = Array.isArray(parsed) 
+        ? parsed 
+        : (parsed.fields || parsed.data || parsed.customFields || parsed.rows || parsed.items || parsed.results || []);
       // Ensure tab is set on each field
       fields = fields.map((f: any) => ({ ...f, tab }));
     } catch {
