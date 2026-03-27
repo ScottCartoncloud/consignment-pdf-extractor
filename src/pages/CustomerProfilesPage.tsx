@@ -100,6 +100,10 @@ const CustomerProfilesPage = () => {
         reader.readAsDataURL(file);
       });
 
+      // Store base64 for PDF viewer and re-extract
+      setLastPdfBase64(base64);
+      setPdfDataUrl(`data:application/pdf;base64,${base64}`);
+
       const { data, error } = await supabase.functions.invoke("extract-consignment", {
         body: { pdfBase64: base64, extractionHints: form.extraction_hints || undefined },
       });
@@ -113,7 +117,7 @@ const CustomerProfilesPage = () => {
     } finally {
       setIsExtracting(false);
     }
-  }, [form.extraction_hints, toast, pdfBlobUrl]);
+  }, [form.extraction_hints, toast]);
 
   const handleSampleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
