@@ -265,7 +265,7 @@ const CustomerDetailPage = () => {
 
   return (
     <div className="p-6 space-y-6 max-w-[1400px] mx-auto">
-      <Button variant="ghost" onClick={() => navigate("/profiles")} className="mb-2">
+      <Button variant="ghost" onClick={() => navigate(`/tenants/${tenantId}`)} className="mb-2">
         <ArrowLeft className="h-4 w-4 mr-2" /> Back to Customers
       </Button>
 
