@@ -10,7 +10,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { pdfBase64, customerProfileId, extractionHints } = await req.json();
+    const { pdfBase64, customerProfileId, extractionHints, tenantId } = await req.json();
     if (!pdfBase64) throw new Error("pdfBase64 is required");
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -31,6 +31,19 @@ serve(async (req) => {
         .maybeSingle();
       if (profile?.extraction_hints) {
         hints = profile.extraction_hints;
+      }
+    }
+
+    // Fetch tenant's custom field schema if tenantId provided
+    let customFieldSchema: any[] = [];
+    if (tenantId) {
+      const { data: tenant } = await supabase
+        .from("tenants")
+        .select("custom_field_schema")
+        .eq("id", tenantId)
+        .maybeSingle();
+      if (tenant?.custom_field_schema) {
+        customFieldSchema = tenant.custom_field_schema as any[];
       }
     }
 
@@ -55,6 +68,19 @@ Rules:
 
     if (hints) {
       systemPrompt += `\n\nAdditional context for this customer: ${hints}`;
+    }
+
+    // Inject custom field schema into prompt
+    if (customFieldSchema.length > 0) {
+      const fieldList = customFieldSchema.map((f: any) =>
+        `- "${f.name}" (${f.fieldType}) → mappedField: "${f.mappedField}", fieldName: "${f.fieldName}"`
+      ).join("\n");
+
+      systemPrompt += `\n\nAdditionally, extract these custom fields if present in the document:
+${fieldList}
+
+Return them in a "customFields" object on the response, keyed by fieldName:
+{ "customFields": { "fieldName1": "value1", "fieldName2": "value2" } }`;
     }
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
