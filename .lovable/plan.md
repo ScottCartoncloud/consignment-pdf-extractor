@@ -1,86 +1,91 @@
 
 
-# Customer Profiles & Email-to-Consignment Pipeline
+# Restructured App — Customer-Centric Workflow
 
-## Concept
+## The Problem
 
-Add **Customer Profiles** — each profile ties a customer to their invoice format, generates a unique email address, and optionally stores extraction hints to improve AI accuracy.
+The current app is organized around actions (Upload → Review → Submit), but the real workflow is customer-centric: you set up each customer once, then process their invoices ongoing. The Upload page and Review page are disconnected from customer context.
 
-## Flow
+## New Information Architecture
 
 ```text
-1. Admin creates Customer Profile
-   → enters customer name, CC customer ID
-   → uploads a sample PDF
-   → AI extracts data, admin verifies/corrects
-   → saves profile (with optional extraction hints)
-   → system generates unique email: {slug}@notify.yourdomain.com
-
-2. Customer sends invoice to their unique email
-   → email webhook receives PDF attachment
-   → looks up customer profile by recipient address
-   → runs AI extraction with customer-specific hints
-   → creates consignment draft, ready for review
-
-3. Admin reviews draft on Review page
-   → customer auto-matched, fields pre-filled
-   → submit to CartonCloud
+Sidebar:
+  ┌─────────────────────┐
+  │ ConsignmentBuilder   │
+  │                      │
+  │ 📋 Customers         │  ← list of customer profiles
+  │ 📊 Activity Log      │  ← history of all processed consignments
+  │ ⚙️ Settings          │  ← CC API keys etc.
+  └─────────────────────┘
 ```
+
+**Removed**: Upload (standalone), Review (standalone), Email Mappings (absorbed into profiles).
+
+## Customers Page (list)
+
+Table of all customer profiles: Name, CC Customer ID, Inbound Email, Last Activity, Status.
+
+"Add Customer" button opens the create flow.
+
+Clicking a customer row opens the **Customer Detail** page.
+
+## Customer Detail Page (`/profiles/:id`)
+
+A single page with everything for that customer:
+
+### Tabs or sections:
+
+1. **Profile** — name, CC Customer ID, inbound email slug (read-only with copy), extraction hints textarea. Save button.
+
+2. **Sample Mapping** — side-by-side PDF viewer + extracted fields (existing functionality). Upload sample, verify/correct, save. This is the "teach the AI" step done once.
+
+3. **Upload Invoice** — drag-and-drop a PDF for this customer. Extracts using this customer's hints, then shows the Review/Edit form inline (same side-by-side layout). Submit to CartonCloud button right there.
+
+4. **History** — table of all consignment drafts for this customer, showing: date, source (manual upload / inbound email), status (draft / submitted / failed), reference, and a link to view details.
+
+## Activity Log Page (`/log`)
+
+Global view across all customers:
+- Date, Customer Name, Source, Status, Reference, Error (if failed)
+- Filterable by customer, status, date range
+- Powered by `consignment_drafts` table with additional columns
 
 ## Database Changes
 
-### New table: `customer_profiles`
-- `id` (uuid, PK)
-- `customer_name` (text)
-- `cc_customer_id` (text)
-- `inbound_email_slug` (text, unique) — e.g. "acme-corp" → acme-corp@...
-- `extraction_hints` (text, nullable) — free-text instructions appended to AI prompt (e.g. "Weight is always in kg, ignore the 'Ref' column")
-- `sample_extraction` (jsonb, nullable) — the verified sample extraction for reference
-- `created_at` (timestamptz)
-
-### Update `email_customer_mappings`
-- Add `customer_profile_id` (uuid, FK to customer_profiles, nullable) — links email senders to profiles
-
 ### Update `consignment_drafts`
-- Add `customer_profile_id` (uuid, FK, nullable) — tracks which profile was used
+- Add `source` column (text, default `'manual'`) — values: `manual`, `email`
+- Add `submitted_at` (timestamptz, nullable)
+- Add `cc_response` (jsonb, nullable) — store CartonCloud API response
+- Add `error_message` (text, nullable)
+- Ensure `customer_profile_id` is always set for new drafts
 
-## New Page: Customer Profiles
+### Drop standalone pages
+- Remove `email_customer_mappings` dependency (email mapping is now just the inbound slug on the profile)
+- The `email_customer_mappings` table can stay for now but is no longer the primary lookup
 
-Located in sidebar between "Upload" and "Review":
+## Sidebar & Routing Changes
 
-1. **Profile list** — table showing all profiles with name, CC ID, inbound email, sample status
-2. **Create/Edit profile** — form with:
-   - Customer name, CC Customer ID
-   - Sample PDF upload zone
-   - AI extraction preview (same form as Review page but in "validation mode")
-   - Extraction hints textarea
-   - Generated inbound email address (read-only, with copy button)
-3. **Delete** with confirmation
+- `/` → redirect to `/profiles`
+- `/profiles` → Customer list
+- `/profiles/:id` → Customer detail (with tabs: Profile, Sample, Upload, History)
+- `/profiles/new` → Create customer flow
+- `/log` → Activity log
+- `/settings` → Settings (unchanged)
+- Remove `/review`, `/upload`, `/email-mappings` routes
 
-## Edge Function Changes
+## Implementation Order
 
-### `extract-consignment`
-- Accept optional `customer_profile_id`
-- If provided, fetch the profile's `extraction_hints` and append to the system prompt
-- This gives the AI customer-specific context without rigid templates
+1. **Database migration** — add `source`, `submitted_at`, `cc_response`, `error_message` to `consignment_drafts`
+2. **Customer Detail page** — new page with tabbed layout containing Profile, Sample Mapping, Upload, and History sections
+3. **Refactor Upload + Review into Customer Detail** — move the upload-and-review flow into the customer's "Upload Invoice" tab, pre-wired with that customer's profile
+4. **Activity Log page** — new page querying `consignment_drafts` joined with `customer_profiles`
+5. **Update sidebar and routing** — simplify navigation to Customers, Activity Log, Settings
+6. **Remove orphaned pages** — clean up old Upload, Review, Email Mappings pages
 
-## Phase 2 (Future — not in this build)
+## Technical Notes
 
-- **Inbound email webhook** — receives emails at generated addresses, extracts PDF attachments, auto-creates drafts
-- This requires email domain setup and webhook configuration, so it's better as a follow-up
-
-## What We Build Now
-
-1. `customer_profiles` table + migration
-2. Customer Profiles page (CRUD + sample upload/verify flow)
-3. Update `extract-consignment` to accept and use extraction hints
-4. Update Upload page to optionally select a customer profile before uploading
-5. Wire profile selection into the Review page for auto-matching
-
-## Technical Details
-
-- The sample verification flow reuses the existing `extract-consignment` edge function — upload sample, show results in an editable form, save verified extraction to the profile
-- Extraction hints are injected into the system prompt as an additional paragraph: "Additional context for this customer: {hints}"
-- Inbound email slugs are auto-generated from customer name (slugified, deduped) but editable
-- The unique email address display is informational for now (Phase 2 enables actual receiving)
+- The side-by-side PDF viewer + editable extraction form is reused across Sample Mapping and Upload Invoice tabs — extract into a shared component
+- Submit to CartonCloud happens inline on the Upload tab, storing the response in `consignment_drafts.cc_response`
+- The History tab queries `consignment_drafts` filtered by `customer_profile_id`
+- Activity Log is the same query without the customer filter
 
