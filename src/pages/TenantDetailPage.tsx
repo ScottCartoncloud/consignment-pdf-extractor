@@ -159,6 +159,28 @@ const TenantDetailPage = () => {
     }
   };
 
+  // Customers state
+  const [customers, setCustomers] = useState<CustomerRow[]>([]);
+
+  const fetchCustomers = useCallback(async () => {
+    if (isNew || !id) return;
+    const { data } = await supabase
+      .from("customer_profiles")
+      .select("id, customer_name, cc_customer_id, inbound_email_slug, sample_extraction")
+      .eq("tenant_id", id)
+      .order("customer_name");
+    if (data) setCustomers(data as CustomerRow[]);
+  }, [id, isNew]);
+
+  useEffect(() => { fetchCustomers(); }, [fetchCustomers]);
+
+  const deleteCustomer = async (custId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    await supabase.from("customer_profiles").delete().eq("id", custId);
+    toast({ title: "Customer deleted" });
+    fetchCustomers();
+  };
+
   const filteredFields = customFields.filter((f) => f.tab === activeFieldTab);
 
   const UploadZone = ({ tab, isExtracting }: { tab: "consignmentData" | "consignmentItem"; isExtracting: boolean }) => (
