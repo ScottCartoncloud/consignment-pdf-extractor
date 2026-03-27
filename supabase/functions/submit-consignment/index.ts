@@ -113,15 +113,35 @@ serve(async (req) => {
     }
 
     // Transform internal payload to CartonCloud API format
-    // CC expects state/country as objects and companyName to be non-empty.
-    const toAddressObj = (addr: any, fallbackCompanyName = "") => ({
-      companyName: addr?.companyName?.trim() || addr?.contactName?.trim() || fallbackCompanyName,
-      address1: addr?.address1 || "",
-      suburb: addr?.suburb || "",
-      state: { name: addr?.state || "" },
-      postcode: addr?.postcode || "",
-      country: { name: addr?.country || "Australia" },
-    });
+    // CC expects state/country as reference objects and companyName to be non-empty.
+    const normalizeStateName = (value: string | undefined) => {
+      if (!value) return undefined;
+      const raw = value.trim();
+      const upper = raw.toUpperCase();
+      const map: Record<string, string> = {
+        NSW: "New South Wales",
+        VIC: "Victoria",
+        QLD: "Queensland",
+        SA: "South Australia",
+        WA: "Western Australia",
+        TAS: "Tasmania",
+        NT: "Northern Territory",
+        ACT: "Australian Capital Territory",
+      };
+      return map[upper] || raw;
+    };
+
+    const toAddressObj = (addr: any, fallbackCompanyName = "") => {
+      const stateName = normalizeStateName(addr?.state);
+      return {
+        companyName: addr?.companyName?.trim() || addr?.contactName?.trim() || fallbackCompanyName,
+        address1: addr?.address1 || "",
+        suburb: addr?.suburb || "",
+        ...(stateName ? { state: { name: stateName } } : {}),
+        postcode: addr?.postcode || "",
+        country: { name: addr?.country || "Australia" },
+      };
+    };
 
     const ccPayload = {
       references: {
