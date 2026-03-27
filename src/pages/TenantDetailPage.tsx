@@ -9,7 +9,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Loader2, Eye, EyeOff, Upload, ImageIcon } from "lucide-react";
+import { ArrowLeft, Loader2, Eye, EyeOff, Upload, ImageIcon, Plus, Trash2, Users } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
+interface CustomerRow {
+  id: string;
+  customer_name: string;
+  cc_customer_id: string;
+  inbound_email_slug: string;
+  sample_extraction: any;
+}
 
 interface CustomField {
   name: string;
