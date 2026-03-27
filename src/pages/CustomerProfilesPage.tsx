@@ -58,7 +58,8 @@ const CustomerProfilesPage = () => {
     setEditingProfile(null);
     setForm({ customer_name: "", cc_customer_id: "", inbound_email_slug: "", extraction_hints: "" });
     setSampleExtraction(null);
-    setPdfBlobUrl(null);
+    setPdfDataUrl(null);
+    setLastPdfBase64(null);
     setView("form");
   };
 
