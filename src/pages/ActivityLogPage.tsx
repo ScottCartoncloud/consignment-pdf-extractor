@@ -141,7 +141,7 @@ const ActivityLogPage = () => {
                 </Popover>
               </div>
               <span className="pb-2 text-sm text-muted-foreground">–</span>
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <Label className="text-xs">To</Label>
               <Popover>
                 <PopoverTrigger asChild>
