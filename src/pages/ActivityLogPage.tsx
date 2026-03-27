@@ -125,12 +125,12 @@ const ActivityLogPage = () => {
           {/* Filters row */}
           <div className="flex flex-wrap items-end gap-3">
             {/* Date range */}
-            <div className="flex items-end gap-2">
-              <div className="space-y-2.5">
-                <Label className="text-xs">From</Label>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2.5">
+                <Label className="text-xs whitespace-nowrap">From</Label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className={cn("w-[150px] justify-start text-left font-normal", !dateFrom && "text-muted-foreground")}>
+                    <Button variant="outline" className={cn("w-[170px] justify-start text-left font-normal", !dateFrom && "text-muted-foreground")}>
                       <CalendarIcon className="mr-2 h-3.5 w-3.5" />
                       {dateFrom ? format(dateFrom, "dd/MM/yyyy") : "Start date"}
                     </Button>
@@ -140,21 +140,23 @@ const ActivityLogPage = () => {
                   </PopoverContent>
                 </Popover>
               </div>
-              <span className="pb-2 text-sm text-muted-foreground">–</span>
-              <div className="space-y-2.5">
-                <Label className="text-xs">To</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn("w-[150px] justify-start text-left font-normal", !dateTo && "text-muted-foreground")}>
-                    <CalendarIcon className="mr-2 h-3.5 w-3.5" />
-                    {dateTo ? format(dateTo, "dd/MM/yyyy") : "End date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus className="p-3 pointer-events-auto" />
-                </PopoverContent>
-              </Popover>
-            </div>
+
+              <span className="text-sm text-muted-foreground">–</span>
+
+              <div className="flex items-center gap-2.5">
+                <Label className="text-xs whitespace-nowrap">To</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("w-[170px] justify-start text-left font-normal", !dateTo && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                      {dateTo ? format(dateTo, "dd/MM/yyyy") : "End date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus className="p-3 pointer-events-auto" />
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
 
             {/* Reference search */}
