@@ -76,7 +76,9 @@ Return a JSON object with a single "fields" key containing the array of extracte
                          textContent.match(/```\s*([\s\S]*?)\s*```/);
       const parsed = JSON.parse(jsonMatch ? jsonMatch[1] : textContent);
       // Handle both array and { fields: [...] } responses
-      fields = Array.isArray(parsed) ? parsed : (parsed.fields || parsed.data || []);
+      fields = Array.isArray(parsed) 
+        ? parsed 
+        : (parsed.fields || parsed.data || parsed.customFields || parsed.rows || parsed.items || parsed.results || []);
       // Ensure tab is set on each field
       fields = fields.map((f: any) => ({ ...f, tab }));
     } catch {
