@@ -18,7 +18,7 @@ const SettingsPage = () => {
     const load = async () => {
       const { data } = await supabase.from("settings").select("*").limit(1).single();
       if (data) {
-        setSettings({ cc_api_base_url: data.cc_api_base_url, cc_api_key: data.cc_api_key, claude_api_key: data.claude_api_key });
+        setSettings({ cc_api_base_url: data.cc_api_base_url, cc_api_key: data.cc_api_key });
         setSettingsId(data.id);
       }
     };
