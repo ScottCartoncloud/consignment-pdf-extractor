@@ -18,23 +18,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        if (session?.user) {
-          const email = session.user.email ?? "";
-          const domain = email.split("@")[1] ?? "";
-          if (!ALLOWED_DOMAINS.includes(domain)) {
-            await supabase.auth.signOut();
-            setSession(null);
-            setLoading(false);
-            return;
-          }
-        }
-        setSession(session);
-        setLoading(false);
-      }
-    );
+    let initialised = false;
 
+    // 1. Restore session from storage first
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         const email = session.user.email ?? "";
@@ -43,12 +29,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           supabase.auth.signOut();
           setSession(null);
           setLoading(false);
+          initialised = true;
           return;
         }
       }
       setSession(session);
       setLoading(false);
+      initialised = true;
     });
+
+    // 2. Listen for subsequent auth changes (sign-in, sign-out, token refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (!initialised) return; // skip until getSession has resolved
+        if (session?.user) {
+          const email = session.user.email ?? "";
+          const domain = email.split("@")[1] ?? "";
+          if (!ALLOWED_DOMAINS.includes(domain)) {
+            supabase.auth.signOut();
+            setSession(null);
+            return;
+          }
+        }
+        setSession(session);
+      }
+    );
 
     return () => subscription.unsubscribe();
   }, []);
