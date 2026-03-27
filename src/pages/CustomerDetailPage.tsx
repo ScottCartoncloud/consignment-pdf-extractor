@@ -59,8 +59,6 @@ const CustomerDetailPage = () => {
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
   const [form, setForm] = useState({ customer_name: "", cc_customer_id: "", inbound_email_slug: "", extraction_hints: "", tenant_id: tenantId || "" });
   const [saving, setSaving] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [tenants, setTenants] = useState<TenantOption[]>([]);
   const [customFieldSchema, setCustomFieldSchema] = useState<CustomFieldDef[]>([]);
 
   // Sample mapping state
