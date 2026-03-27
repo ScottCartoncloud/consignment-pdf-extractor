@@ -45,7 +45,7 @@ const UploadPage = () => {
       });
 
       const body: any = { pdfBase64: base64 };
-      if (selectedProfileId) body.customerProfileId = selectedProfileId;
+      if (selectedProfileId && selectedProfileId !== "none") body.customerProfileId = selectedProfileId;
 
       const { data, error } = await supabase.functions.invoke("extract-consignment", { body });
 
