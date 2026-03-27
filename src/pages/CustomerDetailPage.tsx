@@ -222,12 +222,6 @@ const CustomerDetailPage = () => {
       if (data?.error) throw new Error(data.error);
       setSubmitResult({ success: true });
       toast({ title: "Submitted!", description: "Consignment submitted to CartonCloud." });
-      const { data: draftData } = await supabase
-        .from("consignment_drafts")
-        .select("id, status, source, created_at, from_email, error_message, mapped_payload")
-        .eq("customer_profile_id", id!)
-        .order("created_at", { ascending: false });
-      if (draftData) setDrafts(draftData as DraftRow[]);
     } catch (err: any) {
       setSubmitResult({ success: false, error: err.message });
       toast({ title: "Submission failed", description: err.message, variant: "destructive" });
