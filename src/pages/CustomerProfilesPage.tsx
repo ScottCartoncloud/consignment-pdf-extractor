@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { ConsignmentPayload, ConsignmentItem } from "@/types/consignment";
 import {
-  Plus, Trash2, ArrowLeft, Upload, Loader2, Copy, CheckCircle2, FileText, Pencil,
+  Plus, Trash2, ArrowLeft, Upload, Loader2, Copy, CheckCircle2, FileText, Pencil, RefreshCw, Lightbulb,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -38,6 +38,7 @@ const CustomerProfilesPage = () => {
   const [editingProfile, setEditingProfile] = useState<CustomerProfile | null>(null);
   const [form, setForm] = useState({ customer_name: "", cc_customer_id: "", inbound_email_slug: "", extraction_hints: "" });
   const [sampleExtraction, setSampleExtraction] = useState<ConsignmentPayload | null>(null);
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -50,10 +51,16 @@ const CustomerProfilesPage = () => {
 
   useEffect(() => { fetchProfiles(); }, []);
 
+  // Clean up blob URL on unmount
+  useEffect(() => {
+    return () => { if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl); };
+  }, [pdfBlobUrl]);
+
   const openCreate = () => {
     setEditingProfile(null);
     setForm({ customer_name: "", cc_customer_id: "", inbound_email_slug: "", extraction_hints: "" });
     setSampleExtraction(null);
+    setPdfBlobUrl(null);
     setView("form");
   };
 
@@ -66,6 +73,7 @@ const CustomerProfilesPage = () => {
       extraction_hints: p.extraction_hints || "",
     });
     setSampleExtraction(p.sample_extraction as ConsignmentPayload | null);
+    setPdfBlobUrl(null);
     setView("form");
   };
 
@@ -82,6 +90,12 @@ const CustomerProfilesPage = () => {
       toast({ title: "Invalid file", description: "Please upload a PDF file.", variant: "destructive" });
       return;
     }
+
+    // Create blob URL for the PDF viewer
+    if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
+    const blobUrl = URL.createObjectURL(file);
+    setPdfBlobUrl(blobUrl);
+
     setIsExtracting(true);
     try {
       const reader = new FileReader();
@@ -98,13 +112,13 @@ const CustomerProfilesPage = () => {
       if (data?.error) throw new Error(data.error);
 
       setSampleExtraction(data.extraction);
-      toast({ title: "Sample extracted", description: "Review and verify the extraction below." });
+      toast({ title: "Sample extracted", description: "Compare with the PDF and correct any errors. Then update your extraction hints." });
     } catch (err: any) {
       toast({ title: "Extraction failed", description: err.message, variant: "destructive" });
     } finally {
       setIsExtracting(false);
     }
-  }, [form.extraction_hints, toast]);
+  }, [form.extraction_hints, toast, pdfBlobUrl]);
 
   const handleSampleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -176,13 +190,15 @@ const CustomerProfilesPage = () => {
 
   const addressFields = ["companyName", "address1", "suburb", "state", "postcode", "country"] as const;
 
+  // ─── FORM VIEW ───
   if (view === "form") {
     return (
-      <div className="max-w-4xl mx-auto p-6 space-y-6">
+      <div className="p-6 space-y-6">
         <Button variant="ghost" onClick={() => setView("list")} className="mb-2">
           <ArrowLeft className="h-4 w-4 mr-2" /> Back to Profiles
         </Button>
 
+        {/* Profile details card */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">{editingProfile ? "Edit" : "Create"} Customer Profile</CardTitle>
@@ -208,31 +224,16 @@ const CustomerProfilesPage = () => {
                 </Button>
               </div>
             </div>
-            <div className="space-y-2">
-              <Label>Extraction Hints (optional)</Label>
-              <Textarea
-                value={form.extraction_hints}
-                onChange={(e) => setForm((f) => ({ ...f, extraction_hints: e.target.value }))}
-                placeholder="e.g. Weight is always in kg. Ignore the 'Ref' column. The delivery address is always in the top-right section."
-                rows={3}
-              />
-              <p className="text-xs text-muted-foreground">These hints are appended to the AI prompt when extracting invoices from this customer.</p>
-            </div>
           </CardContent>
         </Card>
 
-        {/* Sample PDF Upload */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Sample PDF Verification</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isExtracting ? (
-              <div className="flex flex-col items-center justify-center py-12 gap-4">
-                <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                <p className="text-muted-foreground">Extracting sample data with AI…</p>
-              </div>
-            ) : !sampleExtraction ? (
+        {/* Sample PDF section — upload or side-by-side */}
+        {!sampleExtraction && !isExtracting && !pdfBlobUrl ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Sample PDF Verification</CardTitle>
+            </CardHeader>
+            <CardContent>
               <label
                 className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg py-12 px-6 cursor-pointer transition-colors border-border hover:border-primary/50"
                 onDragOver={(e) => e.preventDefault()}
@@ -240,77 +241,163 @@ const CustomerProfilesPage = () => {
               >
                 <Upload className="h-8 w-8 text-muted-foreground mb-3" />
                 <p className="text-foreground font-medium mb-1">Upload a sample PDF to verify extraction</p>
-                <p className="text-sm text-muted-foreground">This helps confirm the AI reads this customer's invoices correctly</p>
+                <p className="text-sm text-muted-foreground">You'll see the original PDF side-by-side with the AI extraction to verify accuracy</p>
                 <input type="file" accept=".pdf" className="hidden" onChange={handleSampleSelect} />
               </label>
-            ) : (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <Badge variant="secondary" className="gap-1"><FileText className="h-3 w-3" /> Sample verified</Badge>
-                  <label className="cursor-pointer">
-                    <Button size="sm" variant="outline" asChild><span>Re-upload Sample</span></Button>
-                    <input type="file" accept=".pdf" className="hidden" onChange={handleSampleSelect} />
-                  </label>
-                </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold">Sample Verification</h2>
+              <label className="cursor-pointer">
+                <Button size="sm" variant="outline" asChild>
+                  <span><RefreshCw className="h-3 w-3 mr-2" /> Re-upload Sample</span>
+                </Button>
+                <input type="file" accept=".pdf" className="hidden" onChange={handleSampleSelect} />
+              </label>
+            </div>
 
-                {/* Editable extraction preview */}
-                <div className="space-y-4">
-                  <h4 className="text-sm font-medium">Collect Address</h4>
-                  <div className="grid grid-cols-3 gap-3">
-                    {addressFields.map((f) => (
-                      <div key={f}>
-                        <Label className="text-xs capitalize">{f.replace(/([A-Z])/g, " $1")}</Label>
-                        <Input value={(sampleExtraction.collectAddress as any)[f] || ""} onChange={(e) => updateSampleField("collectAddress", f, e.target.value)} />
-                      </div>
-                    ))}
-                  </div>
+            {/* Side-by-side layout */}
+            <div className="grid grid-cols-2 gap-4" style={{ minHeight: "700px" }}>
+              {/* LEFT: PDF Viewer */}
+              <Card className="overflow-hidden">
+                <CardHeader className="py-3 px-4">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <FileText className="h-4 w-4" /> Original PDF
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0 h-full">
+                  {pdfBlobUrl ? (
+                    <iframe
+                      src={pdfBlobUrl}
+                      className="w-full border-0"
+                      style={{ height: "calc(100% - 52px)", minHeight: "640px" }}
+                      title="Sample PDF"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-muted-foreground text-sm p-8">
+                      <p>PDF preview not available (uploaded in a previous session). Re-upload the sample to see it here.</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
-                  <h4 className="text-sm font-medium">Deliver Address</h4>
-                  <div className="grid grid-cols-3 gap-3">
-                    {[...addressFields, "contactName" as const, "instructions" as const].map((f) => (
-                      <div key={f}>
-                        <Label className="text-xs capitalize">{f.replace(/([A-Z])/g, " $1")}</Label>
-                        <Input value={(sampleExtraction.deliverAddress as any)[f] || ""} onChange={(e) => updateSampleField("deliverAddress", f, e.target.value)} />
-                      </div>
-                    ))}
-                  </div>
-
-                  <h4 className="text-sm font-medium">Items</h4>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Description</TableHead>
-                        <TableHead className="w-16">Qty</TableHead>
-                        <TableHead className="w-20">Weight</TableHead>
-                        <TableHead className="w-16">L</TableHead>
-                        <TableHead className="w-16">W</TableHead>
-                        <TableHead className="w-16">H</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {sampleExtraction.items.map((item, i) => (
-                        <TableRow key={i}>
-                          <TableCell><Input value={item.description} onChange={(e) => updateSampleItem(i, "description", e.target.value)} /></TableCell>
-                          {(["quantity", "weight", "length", "width", "height"] as const).map((f) => (
-                            <TableCell key={f}><Input type="number" value={item[f]} onChange={(e) => updateSampleItem(i, f, e.target.value)} /></TableCell>
+              {/* RIGHT: Extraction results */}
+              <Card className="overflow-auto">
+                <CardHeader className="py-3 px-4">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4" /> AI Extraction Result
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4 px-4 pb-4">
+                  {isExtracting ? (
+                    <div className="flex flex-col items-center justify-center py-20 gap-4">
+                      <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                      <p className="text-muted-foreground">Extracting with AI…</p>
+                    </div>
+                  ) : sampleExtraction ? (
+                    <>
+                      <div>
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Collect Address</h4>
+                        <div className="grid grid-cols-2 gap-2">
+                          {addressFields.map((f) => (
+                            <div key={f}>
+                              <Label className="text-xs capitalize">{f.replace(/([A-Z])/g, " $1")}</Label>
+                              <Input className="h-8 text-sm" value={(sampleExtraction.collectAddress as any)[f] || ""} onChange={(e) => updateSampleField("collectAddress", f, e.target.value)} />
+                            </div>
                           ))}
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Deliver Address</h4>
+                        <div className="grid grid-cols-2 gap-2">
+                          {[...addressFields, "contactName" as const, "instructions" as const].map((f) => (
+                            <div key={f}>
+                              <Label className="text-xs capitalize">{f.replace(/([A-Z])/g, " $1")}</Label>
+                              <Input className="h-8 text-sm" value={(sampleExtraction.deliverAddress as any)[f] || ""} onChange={(e) => updateSampleField("deliverAddress", f, e.target.value)} />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Items</h4>
+                        <div className="overflow-x-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="text-xs">Description</TableHead>
+                                <TableHead className="text-xs w-14">Qty</TableHead>
+                                <TableHead className="text-xs w-16">Weight</TableHead>
+                                <TableHead className="text-xs w-14">L</TableHead>
+                                <TableHead className="text-xs w-14">W</TableHead>
+                                <TableHead className="text-xs w-14">H</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {sampleExtraction.items.map((item, i) => (
+                                <TableRow key={i}>
+                                  <TableCell className="p-1"><Input className="h-7 text-xs" value={item.description} onChange={(e) => updateSampleItem(i, "description", e.target.value)} /></TableCell>
+                                  {(["quantity", "weight", "length", "width", "height"] as const).map((f) => (
+                                    <TableCell key={f} className="p-1"><Input className="h-7 text-xs" type="number" value={item[f]} onChange={(e) => updateSampleItem(i, f, e.target.value)} /></TableCell>
+                                  ))}
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </div>
+                    </>
+                  ) : null}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
+
+        {/* Extraction Hints — shown after sample extraction with better guidance */}
+        <Card className="border-primary/20 bg-primary/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Lightbulb className="h-4 w-4 text-primary" /> Extraction Hints
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              {sampleExtraction
+                ? "Did the AI get anything wrong? Describe what needs correcting below. These hints are sent to the AI with every future extraction for this customer, so it learns from your corrections."
+                : "After uploading a sample, you can add hints here to guide the AI. For example: \"Weight is in kg\", \"Ignore the reference number column\", or \"Delivery address is in the footer\"."}
+            </p>
+            <Textarea
+              value={form.extraction_hints}
+              onChange={(e) => setForm((f) => ({ ...f, extraction_hints: e.target.value }))}
+              placeholder='e.g. "Weight is always in kg, not grams. The collect address is the sender in the top-left. Ignore rows where description contains TOTAL."'
+              rows={4}
+            />
+            {sampleExtraction && pdfBlobUrl && (
+              <div className="flex items-center gap-2 pt-1">
+                <label className="cursor-pointer">
+                  <Button size="sm" variant="outline" asChild>
+                    <span><RefreshCw className="h-3 w-3 mr-2" /> Re-extract with updated hints</span>
+                  </Button>
+                  <input type="file" accept=".pdf" className="hidden" onChange={handleSampleSelect} />
+                </label>
+                <p className="text-xs text-muted-foreground">Upload the same PDF again to test your hints</p>
               </div>
             )}
           </CardContent>
         </Card>
 
-        <Button onClick={saveProfile} disabled={saving} className="w-full">
+        <Button onClick={saveProfile} disabled={saving} className="w-full" size="lg">
           {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Saving…</> : editingProfile ? "Update Profile" : "Create Profile"}
         </Button>
       </div>
     );
   }
 
+  // ─── LIST VIEW ───
   return (
     <div className="max-w-4xl mx-auto p-6">
       <Card>
