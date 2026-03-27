@@ -375,7 +375,7 @@ const CustomerProfilesPage = () => {
               placeholder='e.g. "Weight is always in kg, not grams. The collect address is the sender in the top-left. Ignore rows where description contains TOTAL."'
               rows={4}
             />
-            {sampleExtraction && pdfBlobUrl && (
+            {sampleExtraction && lastPdfBase64 && (
               <div className="flex items-center gap-2 pt-1">
                 <label className="cursor-pointer">
                   <Button size="sm" variant="outline" asChild>
