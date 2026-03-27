@@ -113,9 +113,9 @@ serve(async (req) => {
     }
 
     // Transform internal payload to CartonCloud API format
-    // CC expects state and country as objects with a "name" key
-    const toAddressObj = (addr: any) => ({
-      companyName: addr?.companyName || "",
+    // CC expects state/country as objects and companyName to be non-empty.
+    const toAddressObj = (addr: any, fallbackCompanyName = "") => ({
+      companyName: addr?.companyName?.trim() || addr?.contactName?.trim() || fallbackCompanyName,
       address1: addr?.address1 || "",
       suburb: addr?.suburb || "",
       state: { name: addr?.state || "" },
@@ -132,10 +132,10 @@ serve(async (req) => {
       },
       details: {
         collect: {
-          address: toAddressObj(payload.collectAddress),
+          address: toAddressObj(payload.collectAddress, "Collect Address"),
         },
         deliver: {
-          address: toAddressObj(payload.deliverAddress),
+          address: toAddressObj(payload.deliverAddress, "Delivery Address"),
           instructions: payload.deliverAddress?.instructions || "",
         },
         type: payload.type || "DELIVERY",
