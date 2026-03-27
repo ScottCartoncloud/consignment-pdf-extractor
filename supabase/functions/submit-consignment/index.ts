@@ -113,6 +113,16 @@ serve(async (req) => {
     }
 
     // Transform internal payload to CartonCloud API format
+    // CC expects state and country as objects with a "name" key
+    const toAddressObj = (addr: any) => ({
+      companyName: addr?.companyName || "",
+      address1: addr?.address1 || "",
+      suburb: addr?.suburb || "",
+      state: { name: addr?.state || "" },
+      postcode: addr?.postcode || "",
+      country: { name: addr?.country || "Australia" },
+    });
+
     const ccPayload = {
       references: {
         customer: payload.references?.customer || "",
@@ -122,28 +132,14 @@ serve(async (req) => {
       },
       details: {
         collect: {
-          address: {
-            companyName: payload.collectAddress?.companyName || "",
-            address1: payload.collectAddress?.address1 || "",
-            suburb: payload.collectAddress?.suburb || "",
-            state: payload.collectAddress?.state || "",
-            postcode: payload.collectAddress?.postcode || "",
-            country: payload.collectAddress?.country || "Australia",
-          },
+          address: toAddressObj(payload.collectAddress),
         },
         deliver: {
-          address: {
-            companyName: payload.deliverAddress?.companyName || "",
-            address1: payload.deliverAddress?.address1 || "",
-            suburb: payload.deliverAddress?.suburb || "",
-            state: payload.deliverAddress?.state || "",
-            postcode: payload.deliverAddress?.postcode || "",
-            country: payload.deliverAddress?.country || "Australia",
-          },
+          address: toAddressObj(payload.deliverAddress),
           instructions: payload.deliverAddress?.instructions || "",
         },
         type: payload.type || "DELIVERY",
-        ...payload.details, // includes any custom field dot-path values already set
+        ...payload.details,
       },
       properties: payload.properties || {},
       items: (payload.items || []).map((item: any) => ({
