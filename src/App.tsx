@@ -4,6 +4,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import AppSidebar from "@/components/AppSidebar";
+import TenantsListPage from "./pages/TenantsListPage";
+import TenantDetailPage from "./pages/TenantDetailPage";
 import CustomersListPage from "./pages/CustomersListPage";
 import CustomerDetailPage from "./pages/CustomerDetailPage";
 import ActivityLogPage from "./pages/ActivityLogPage";
@@ -22,7 +24,9 @@ const App = () => (
           <AppSidebar />
           <main className="flex-1">
             <Routes>
-              <Route path="/" element={<Navigate to="/profiles" replace />} />
+              <Route path="/" element={<Navigate to="/tenants" replace />} />
+              <Route path="/tenants" element={<TenantsListPage />} />
+              <Route path="/tenants/:id" element={<TenantDetailPage />} />
               <Route path="/profiles" element={<CustomersListPage />} />
               <Route path="/profiles/:id" element={<CustomerDetailPage />} />
               <Route path="/log" element={<ActivityLogPage />} />

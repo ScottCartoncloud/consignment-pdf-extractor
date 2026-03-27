@@ -30,4 +30,5 @@ export interface ConsignmentPayload {
   references: { customer: string };
   type: string;
   fromEmail: string;
+  customFields?: Record<string, string>;
 }
