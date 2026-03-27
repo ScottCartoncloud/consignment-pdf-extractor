@@ -236,73 +236,71 @@ const ActivityLogPage = () => {
                   const isError = d.status === "failed";
                   const isSuccess = d.status === "submitted";
 
-                  return (
-                    <>
-                      <TableRow
-                        key={d.id}
-                        className={cn(
-                          "cursor-pointer transition-colors",
-                          isError && "hover:bg-red-50",
-                          isSuccess && "hover:bg-green-50"
+                  return [
+                    <TableRow
+                      key={`${d.id}-row`}
+                      className={cn(
+                        "cursor-pointer transition-colors",
+                        isError && "hover:bg-red-50",
+                        isSuccess && "hover:bg-green-50"
+                      )}
+                      onClick={() => isError ? setExpandedId(isExpanded ? null : d.id) : undefined}
+                    >
+                      <TableCell className="w-8 pr-0">
+                        {isError && (
+                          isExpanded
+                            ? <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                            : <ChevronRight className="h-4 w-4 text-muted-foreground" />
                         )}
-                        onClick={() => isError ? setExpandedId(isExpanded ? null : d.id) : undefined}
-                      >
-                        <TableCell className="w-8 pr-0">
-                          {isError && (
-                            isExpanded
-                              ? <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                              : <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                          )}
-                        </TableCell>
-                        <TableCell className="text-sm">{new Date(d.created_at).toLocaleString()}</TableCell>
-                        <TableCell className="text-sm font-medium">
-                          {d.customer_profile_id ? profileMap[d.customer_profile_id] || "Unknown" : "—"}
-                        </TableCell>
-                        <TableCell className="text-sm font-mono">{getReference(d)}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="text-xs">{d.source}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          {isSuccess && (
-                            <Badge className="bg-green-600 text-white hover:bg-green-700 border-0">
-                              Success
-                            </Badge>
-                          )}
-                          {isError && (
-                            <Badge className="bg-red-600 text-white hover:bg-red-700 border-0">
-                              Error
-                            </Badge>
-                          )}
-                          {!isSuccess && !isError && (
-                            <Badge variant="outline">{d.status}</Badge>
-                          )}
+                      </TableCell>
+                      <TableCell className="text-sm">{new Date(d.created_at).toLocaleString()}</TableCell>
+                      <TableCell className="text-sm font-medium">
+                        {d.customer_profile_id ? profileMap[d.customer_profile_id] || "Unknown" : "—"}
+                      </TableCell>
+                      <TableCell className="text-sm font-mono">{getReference(d)}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-xs">{d.source}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {isSuccess && (
+                          <Badge className="bg-green-600 text-white hover:bg-green-700 border-0">
+                            Success
+                          </Badge>
+                        )}
+                        {isError && (
+                          <Badge className="bg-red-600 text-white hover:bg-red-700 border-0">
+                            Error
+                          </Badge>
+                        )}
+                        {!isSuccess && !isError && (
+                          <Badge variant="outline">{d.status}</Badge>
+                        )}
+                      </TableCell>
+                    </TableRow>,
+                    isExpanded && isError ? (
+                      <TableRow key={`${d.id}-detail`}>
+                        <TableCell colSpan={6} className="bg-red-50 border-l-4 border-red-400 py-4 px-6">
+                          <div className="space-y-3">
+                            <div>
+                              <p className="text-xs font-semibold text-red-800 uppercase tracking-wide mb-1">Error Message</p>
+                              <p className="text-sm text-red-900 whitespace-pre-wrap break-all font-mono bg-white/60 rounded p-3 border border-red-200">
+                                {d.error_message || "No error message recorded."}
+                              </p>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={(e) => { e.stopPropagation(); handleDownloadPayload(d); }}
+                              className="text-xs"
+                            >
+                              <Download className="h-3.5 w-3.5 mr-1.5" />
+                              Download payload
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
-                      {isExpanded && isError && (
-                        <TableRow key={`${d.id}-detail`}>
-                          <TableCell colSpan={6} className="bg-red-50 border-l-4 border-red-400 py-4 px-6">
-                            <div className="space-y-3">
-                              <div>
-                                <p className="text-xs font-semibold text-red-800 uppercase tracking-wide mb-1">Error Message</p>
-                                <p className="text-sm text-red-900 whitespace-pre-wrap break-all font-mono bg-white/60 rounded p-3 border border-red-200">
-                                  {d.error_message || "No error message recorded."}
-                                </p>
-                              </div>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={(e) => { e.stopPropagation(); handleDownloadPayload(d); }}
-                                className="text-xs"
-                              >
-                                <Download className="h-3.5 w-3.5 mr-1.5" />
-                                Download payload
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </>
-                  );
+                    ) : null,
+                  ];
                 })}
               </TableBody>
             </Table>
