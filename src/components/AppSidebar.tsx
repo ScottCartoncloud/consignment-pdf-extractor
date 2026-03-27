@@ -1,11 +1,10 @@
 import { NavLink } from "react-router-dom";
-import { Activity, Settings, Building2 } from "lucide-react";
+import { Activity, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const links = [
   { to: "/tenants", icon: Building2, label: "Tenants" },
   { to: "/log", icon: Activity, label: "Activity Log" },
-  { to: "/settings", icon: Settings, label: "Settings" },
 ];
 
 const AppSidebar = () => (

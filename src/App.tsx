@@ -8,7 +8,7 @@ import TenantsListPage from "./pages/TenantsListPage";
 import TenantDetailPage from "./pages/TenantDetailPage";
 import CustomerDetailPage from "./pages/CustomerDetailPage";
 import ActivityLogPage from "./pages/ActivityLogPage";
-import SettingsPage from "./pages/SettingsPage";
+
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,7 +28,7 @@ const App = () => (
               <Route path="/tenants/:id" element={<TenantDetailPage />} />
               <Route path="/tenants/:tenantId/customers/:id" element={<CustomerDetailPage />} />
               <Route path="/log" element={<ActivityLogPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
+              
               <Route path="*" element={<NotFound />} />
             </Routes>
           </main>
