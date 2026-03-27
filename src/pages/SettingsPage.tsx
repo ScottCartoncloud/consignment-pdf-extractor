@@ -61,13 +61,6 @@ const SettingsPage = () => {
               <Button size="icon" variant="ghost" onClick={() => setShowCcKey(!showCcKey)}>{showCcKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button>
             </div>
           </div>
-          <div className="space-y-2">
-            <Label>Claude API Key</Label>
-            <div className="flex gap-2">
-              <Input type={showClaudeKey ? "text" : "password"} value={settings.claude_api_key} onChange={(e) => setSettings((s) => ({ ...s, claude_api_key: e.target.value }))} />
-              <Button size="icon" variant="ghost" onClick={() => setShowClaudeKey(!showClaudeKey)}>{showClaudeKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button>
-            </div>
-          </div>
           <Button onClick={save} disabled={saving} className="w-full">
             {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Saving…</> : "Save Settings"}
           </Button>
