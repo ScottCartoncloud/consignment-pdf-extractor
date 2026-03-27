@@ -75,6 +75,10 @@ serve(async (req) => {
         if (!payload.properties) payload.properties = {};
 
         for (const field of schema) {
+          // Skip fields marked as "don't send" (default true for serviceType)
+          const dontSend = field.dontSend ?? (field.mappedField && field.mappedField.includes("serviceType"));
+          if (dontSend) continue;
+
           const value = customFields[field.fieldName];
           if (value === undefined || value === "") continue;
 
