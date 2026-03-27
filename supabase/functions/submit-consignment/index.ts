@@ -64,7 +64,7 @@ serve(async (req) => {
 
       const tokenData = await tokenResponse.json();
       accessToken = tokenData.access_token;
-      ccUrl = `${tenant.cc_api_base_url.replace(/\/$/, "")}/consignments`;
+      ccUrl = `${tenant.cc_api_base_url.replace(/\/$/, "")}/tenants/${tenant.cc_tenant_id}/consignments`;
 
       // Apply custom field mappings to payload
       const customFields = payload.customFields || {};
