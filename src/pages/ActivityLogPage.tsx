@@ -126,7 +126,7 @@ const ActivityLogPage = () => {
           <div className="flex flex-wrap items-end gap-3">
             {/* Date range */}
             <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-4">
                 <Label className="text-xs whitespace-nowrap">From</Label>
                 <Popover>
                   <PopoverTrigger asChild>
