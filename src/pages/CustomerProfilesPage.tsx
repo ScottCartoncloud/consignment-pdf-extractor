@@ -72,7 +72,8 @@ const CustomerProfilesPage = () => {
       extraction_hints: p.extraction_hints || "",
     });
     setSampleExtraction(p.sample_extraction as ConsignmentPayload | null);
-    setPdfBlobUrl(null);
+    setPdfDataUrl(null);
+    setLastPdfBase64(null);
     setView("form");
   };
 
