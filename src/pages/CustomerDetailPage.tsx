@@ -145,7 +145,7 @@ const CustomerDetailPage = () => {
   };
 
   const copyEmail = () => {
-    navigator.clipboard.writeText(`${form.inbound_email_slug}@notify.yourdomain.com`);
+    navigator.clipboard.writeText(`${form.inbound_email_slug}@inbound.cloudy-pdf.com`);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -268,7 +268,7 @@ const CustomerDetailPage = () => {
                 <Label>Inbound Email Slug</Label>
                 <div className="flex items-center gap-2">
                   <Input value={form.inbound_email_slug} onChange={(e) => setForm((f) => ({ ...f, inbound_email_slug: e.target.value }))} />
-                  <span className="text-sm text-muted-foreground whitespace-nowrap">@notify.yourdomain.com</span>
+                  <span className="text-sm text-muted-foreground whitespace-nowrap">@inbound.cloudy-pdf.com</span>
                   <Button size="icon" variant="ghost" onClick={copyEmail}>
                     {copied ? <CheckCircle2 className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
                   </Button>
