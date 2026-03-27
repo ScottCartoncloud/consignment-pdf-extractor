@@ -126,7 +126,7 @@ const ActivityLogPage = () => {
           <div className="flex flex-wrap items-end gap-3">
             {/* Date range */}
             <div className="flex items-end gap-2">
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <Label className="text-xs">From</Label>
                 <Popover>
                   <PopoverTrigger asChild>
@@ -141,7 +141,7 @@ const ActivityLogPage = () => {
                 </Popover>
               </div>
               <span className="pb-2 text-sm text-muted-foreground">–</span>
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <Label className="text-xs">To</Label>
               <Popover>
                 <PopoverTrigger asChild>
@@ -158,7 +158,7 @@ const ActivityLogPage = () => {
             </div>
 
             {/* Reference search */}
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <Label className="text-xs">Reference</Label>
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
@@ -172,7 +172,7 @@ const ActivityLogPage = () => {
             </div>
 
             {/* Customer filter */}
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <Label className="text-xs">Customer</Label>
               <Select value={filterCustomer} onValueChange={setFilterCustomer}>
                 <SelectTrigger className="w-[180px]">
@@ -188,7 +188,7 @@ const ActivityLogPage = () => {
             </div>
 
             {/* Status filter */}
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <Label className="text-xs">Status</Label>
               <Select value={filterStatus} onValueChange={setFilterStatus}>
                 <SelectTrigger className="w-[130px]">
