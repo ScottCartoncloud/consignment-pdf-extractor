@@ -9,7 +9,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { imageBase64, tab } = await req.json();
+    const { imageBase64, tab, mediaType } = await req.json();
     if (!imageBase64) throw new Error("imageBase64 is required");
     if (!tab || !["consignmentData", "consignmentItem"].includes(tab)) {
       throw new Error("tab must be 'consignmentData' or 'consignmentItem'");
