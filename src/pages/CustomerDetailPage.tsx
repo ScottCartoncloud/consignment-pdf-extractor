@@ -141,10 +141,6 @@ const CustomerDetailPage = () => {
       toast({ title: "Missing fields", description: "Name, Customer ID and email slug are required.", variant: "destructive" });
       return;
     }
-    if (!form.tenant_id) {
-      toast({ title: "Missing tenant", description: "Please select a tenant.", variant: "destructive" });
-      return;
-    }
     setSaving(true);
     try {
       const row = {
