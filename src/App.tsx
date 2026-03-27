@@ -8,7 +8,7 @@ import TenantsListPage from "./pages/TenantsListPage";
 import TenantDetailPage from "./pages/TenantDetailPage";
 import CustomerDetailPage from "./pages/CustomerDetailPage";
 import ActivityLogPage from "./pages/ActivityLogPage";
-import SettingsPage from "./pages/SettingsPage";
+
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
