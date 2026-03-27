@@ -112,7 +112,7 @@ const CustomerDetailPage = () => {
           cc_customer_id: p.cc_customer_id,
           inbound_email_slug: p.inbound_email_slug,
           extraction_hints: p.extraction_hints || "",
-          tenant_id: p.tenant_id || "",
+          tenant_id: p.tenant_id || tenantId || "",
         });
         setSampleExtraction(p.sample_extraction as ConsignmentPayload | null);
 
