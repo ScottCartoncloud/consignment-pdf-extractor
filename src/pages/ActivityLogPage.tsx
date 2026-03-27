@@ -124,25 +124,25 @@ const ActivityLogPage = () => {
         <CardContent className="space-y-4">
           {/* Filters row */}
           <div className="flex flex-wrap items-end gap-3">
-            {/* Date from */}
-            <div className="space-y-1">
-              <Label className="text-xs">From</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn("w-[150px] justify-start text-left font-normal", !dateFrom && "text-muted-foreground")}>
-                    <CalendarIcon className="mr-2 h-3.5 w-3.5" />
-                    {dateFrom ? format(dateFrom, "dd/MM/yyyy") : "Start date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus className="p-3 pointer-events-auto" />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            {/* Date to */}
-            <div className="space-y-1">
-              <Label className="text-xs">To</Label>
+            {/* Date range */}
+            <div className="flex items-end gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs">From</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("w-[150px] justify-start text-left font-normal", !dateFrom && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                      {dateFrom ? format(dateFrom, "dd/MM/yyyy") : "Start date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus className="p-3 pointer-events-auto" />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <span className="pb-2 text-sm text-muted-foreground">–</span>
+              <div className="space-y-1">
+                <Label className="text-xs">To</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button variant="outline" className={cn("w-[150px] justify-start text-left font-normal", !dateTo && "text-muted-foreground")}>
