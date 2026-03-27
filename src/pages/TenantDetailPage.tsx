@@ -394,21 +394,37 @@ const TenantDetailPage = () => {
                           <TableHead>Field Type</TableHead>
                           <TableHead>Field Name</TableHead>
                           <TableHead>Mapped Field</TableHead>
+                          <TableHead>Don't Send</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredFields.map((f, i) => (
-                          <TableRow key={i}>
-                            <TableCell className="text-sm">{f.name}</TableCell>
-                            <TableCell className="text-sm">{f.shortName}</TableCell>
-                            <TableCell><Badge variant="outline">{f.fieldType}</Badge></TableCell>
-                            <TableCell className="text-sm font-mono text-xs">{f.fieldName}</TableCell>
-                            <TableCell className="text-sm font-mono text-xs">{f.mappedField}</TableCell>
-                          </TableRow>
-                        ))}
+                        {filteredFields.map((f, i) => {
+                          const globalIdx = customFields.findIndex((cf) => cf === f);
+                          return (
+                            <TableRow key={i}>
+                              <TableCell className="text-sm">{f.name}</TableCell>
+                              <TableCell className="text-sm">{f.shortName}</TableCell>
+                              <TableCell><Badge variant="outline">{f.fieldType}</Badge></TableCell>
+                              <TableCell className="text-sm font-mono text-xs">{f.fieldName}</TableCell>
+                              <TableCell className="text-sm font-mono text-xs">{f.mappedField}</TableCell>
+                              <TableCell>
+                                <Switch
+                                  checked={f.dontSend ?? f.mappedField.includes("serviceType")}
+                                  onCheckedChange={(checked) => {
+                                    setCustomFields((prev) => {
+                                      const updated = [...prev];
+                                      updated[globalIdx] = { ...updated[globalIdx], dontSend: checked };
+                                      return updated;
+                                    });
+                                  }}
+                                />
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
                         {filteredFields.length === 0 && (
                           <TableRow>
-                            <TableCell colSpan={5} className="text-center text-muted-foreground py-4">
+                            <TableCell colSpan={6} className="text-center text-muted-foreground py-4">
                               No fields for this tab. Upload a screenshot to extract them.
                             </TableCell>
                           </TableRow>
