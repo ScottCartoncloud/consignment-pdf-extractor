@@ -14,7 +14,81 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      consignment_drafts: {
+        Row: {
+          created_at: string
+          from_email: string | null
+          id: string
+          mapped_payload: Json | null
+          raw_extraction: Json | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          from_email?: string | null
+          id?: string
+          mapped_payload?: Json | null
+          raw_extraction?: Json | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          from_email?: string | null
+          id?: string
+          mapped_payload?: Json | null
+          raw_extraction?: Json | null
+          status?: string
+        }
+        Relationships: []
+      }
+      email_customer_mappings: {
+        Row: {
+          cc_customer_id: string
+          cc_customer_name: string
+          created_at: string
+          from_email: string
+          id: string
+        }
+        Insert: {
+          cc_customer_id: string
+          cc_customer_name: string
+          created_at?: string
+          from_email: string
+          id?: string
+        }
+        Update: {
+          cc_customer_id?: string
+          cc_customer_name?: string
+          created_at?: string
+          from_email?: string
+          id?: string
+        }
+        Relationships: []
+      }
+      settings: {
+        Row: {
+          cc_api_base_url: string
+          cc_api_key: string
+          claude_api_key: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          cc_api_base_url?: string
+          cc_api_key?: string
+          claude_api_key?: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          cc_api_base_url?: string
+          cc_api_key?: string
+          claude_api_key?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
