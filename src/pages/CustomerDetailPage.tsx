@@ -8,7 +8,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { ConsignmentPayload } from "@/types/consignment";
@@ -38,11 +37,6 @@ interface DraftRow {
   mapped_payload: any;
 }
 
-interface TenantOption {
-  id: string;
-  name: string;
-}
-
 interface CustomFieldDef {
   name: string;
   shortName: string;
@@ -56,16 +50,15 @@ const slugify = (text: string) =>
   text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
 const CustomerDetailPage = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id, tenantId } = useParams<{ id: string; tenantId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
   const isNew = id === "new";
 
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
-  const [form, setForm] = useState({ customer_name: "", cc_customer_id: "", inbound_email_slug: "", extraction_hints: "", tenant_id: "" });
+  const [form, setForm] = useState({ customer_name: "", cc_customer_id: "", inbound_email_slug: "", extraction_hints: "", tenant_id: tenantId || "" });
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [tenants, setTenants] = useState<TenantOption[]>([]);
   const [customFieldSchema, setCustomFieldSchema] = useState<CustomFieldDef[]>([]);
 
   // Sample mapping state
@@ -90,11 +83,15 @@ const CustomerDetailPage = () => {
   const [drafts, setDrafts] = useState<DraftRow[]>([]);
 
   useEffect(() => {
-    // Load tenants
-    supabase.from("tenants").select("id, name").order("name").then(({ data }) => {
-      if (data) setTenants(data as TenantOption[]);
-    });
-  }, []);
+    // Load tenant's custom field schema directly using tenantId from URL
+    if (tenantId) {
+      supabase.from("tenants").select("custom_field_schema").eq("id", tenantId).single().then(({ data }) => {
+        if (data?.custom_field_schema) {
+          setCustomFieldSchema(data.custom_field_schema as unknown as CustomFieldDef[]);
+        }
+      });
+    }
+  }, [tenantId]);
 
   useEffect(() => {
     if (isNew) return;
@@ -108,17 +105,9 @@ const CustomerDetailPage = () => {
           cc_customer_id: p.cc_customer_id,
           inbound_email_slug: p.inbound_email_slug,
           extraction_hints: p.extraction_hints || "",
-          tenant_id: p.tenant_id || "",
+          tenant_id: p.tenant_id || tenantId || "",
         });
         setSampleExtraction(p.sample_extraction as ConsignmentPayload | null);
-
-        // Load tenant's custom field schema
-        if (p.tenant_id) {
-          const { data: tenant } = await supabase.from("tenants").select("custom_field_schema").eq("id", p.tenant_id).single();
-          if (tenant?.custom_field_schema) {
-            setCustomFieldSchema(tenant.custom_field_schema as unknown as CustomFieldDef[]);
-          }
-        }
       }
       const { data: draftData } = await supabase
         .from("consignment_drafts")
@@ -130,17 +119,7 @@ const CustomerDetailPage = () => {
     load();
   }, [id, isNew]);
 
-  // When tenant changes, load its schema
-  useEffect(() => {
-    if (!form.tenant_id) { setCustomFieldSchema([]); return; }
-    supabase.from("tenants").select("custom_field_schema").eq("id", form.tenant_id).single().then(({ data }) => {
-      if (data?.custom_field_schema) {
-        setCustomFieldSchema(data.custom_field_schema as unknown as CustomFieldDef[]);
-      } else {
-        setCustomFieldSchema([]);
-      }
-    });
-  }, [form.tenant_id]);
+  // tenant_id is now fixed from URL params, no need for dynamic schema loading
 
   const handleNameChange = (name: string) => {
     setForm((f) => ({
@@ -155,10 +134,6 @@ const CustomerDetailPage = () => {
       toast({ title: "Missing fields", description: "Name, Customer ID and email slug are required.", variant: "destructive" });
       return;
     }
-    if (!form.tenant_id) {
-      toast({ title: "Missing tenant", description: "Please select a tenant.", variant: "destructive" });
-      return;
-    }
     setSaving(true);
     try {
       const row = {
@@ -167,13 +142,13 @@ const CustomerDetailPage = () => {
         inbound_email_slug: form.inbound_email_slug,
         extraction_hints: form.extraction_hints || null,
         sample_extraction: sampleExtraction as any,
-        tenant_id: form.tenant_id,
+        tenant_id: tenantId,
       };
       if (isNew) {
         const { data, error } = await supabase.from("customer_profiles").insert(row).select().single();
         if (error) throw error;
         toast({ title: "Profile created" });
-        navigate(`/profiles/${data.id}`, { replace: true });
+        navigate(`/tenants/${tenantId}/customers/${data.id}`, { replace: true });
       } else {
         const { error } = await supabase.from("customer_profiles").update(row).eq("id", id!);
         if (error) throw error;
@@ -283,7 +258,7 @@ const CustomerDetailPage = () => {
 
   return (
     <div className="p-6 space-y-6 max-w-[1400px] mx-auto">
-      <Button variant="ghost" onClick={() => navigate("/profiles")} className="mb-2">
+      <Button variant="ghost" onClick={() => navigate(`/tenants/${tenantId}`)} className="mb-2">
         <ArrowLeft className="h-4 w-4 mr-2" /> Back to Customers
       </Button>
 
@@ -311,22 +286,6 @@ const CustomerDetailPage = () => {
                   <Label>CC Customer ID</Label>
                   <Input value={form.cc_customer_id} onChange={(e) => setForm((f) => ({ ...f, cc_customer_id: e.target.value }))} placeholder="12345" />
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Tenant</Label>
-                <Select value={form.tenant_id} onValueChange={(v) => setForm((f) => ({ ...f, tenant_id: v }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a tenant" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tenants.map((t) => (
-                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {!isNew && profile?.tenant_id && (
-                  <p className="text-xs text-muted-foreground">Changing tenant will update the custom field schema used for extractions.</p>
-                )}
               </div>
               <div className="space-y-2">
                 <Label>Inbound Email Slug</Label>

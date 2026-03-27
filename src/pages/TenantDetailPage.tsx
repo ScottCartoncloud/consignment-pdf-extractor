@@ -9,7 +9,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Loader2, Eye, EyeOff, Upload, ImageIcon } from "lucide-react";
+import { ArrowLeft, Loader2, Eye, EyeOff, Upload, ImageIcon, Plus, Trash2, Users } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
+interface CustomerRow {
+  id: string;
+  customer_name: string;
+  cc_customer_id: string;
+  inbound_email_slug: string;
+  sample_extraction: any;
+}
 
 interface CustomField {
   name: string;
@@ -147,6 +159,28 @@ const TenantDetailPage = () => {
     }
   };
 
+  // Customers state
+  const [customers, setCustomers] = useState<CustomerRow[]>([]);
+
+  const fetchCustomers = useCallback(async () => {
+    if (isNew || !id) return;
+    const { data } = await supabase
+      .from("customer_profiles")
+      .select("id, customer_name, cc_customer_id, inbound_email_slug, sample_extraction")
+      .eq("tenant_id", id)
+      .order("customer_name");
+    if (data) setCustomers(data as CustomerRow[]);
+  }, [id, isNew]);
+
+  useEffect(() => { fetchCustomers(); }, [fetchCustomers]);
+
+  const deleteCustomer = async (custId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    await supabase.from("customer_profiles").delete().eq("id", custId);
+    toast({ title: "Customer deleted" });
+    fetchCustomers();
+  };
+
   const filteredFields = customFields.filter((f) => f.tab === activeFieldTab);
 
   const UploadZone = ({ tab, isExtracting }: { tab: "consignmentData" | "consignmentItem"; isExtracting: boolean }) => (
@@ -172,113 +206,223 @@ const TenantDetailPage = () => {
 
       <h1 className="text-xl font-bold">{isNew ? "New Tenant" : form.name}</h1>
 
-      {/* Section A: CartonCloud Connection */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">CartonCloud Connection</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Tenant Name</Label>
-              <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="My Warehouse" />
-            </div>
-            <div className="space-y-2">
-              <Label>CC Tenant ID</Label>
-              <Input value={form.cc_tenant_id} onChange={(e) => setForm((f) => ({ ...f, cc_tenant_id: e.target.value }))} placeholder="12345" />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label>API Base URL</Label>
-            <Input value={form.cc_api_base_url} onChange={(e) => setForm((f) => ({ ...f, cc_api_base_url: e.target.value }))} />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Client ID</Label>
-              <Input value={form.cc_client_id} onChange={(e) => setForm((f) => ({ ...f, cc_client_id: e.target.value }))} placeholder="client-id" />
-            </div>
-            <div className="space-y-2">
-              <Label>Client Secret</Label>
-              <div className="flex gap-2">
-                <Input
-                  type={showSecret ? "text" : "password"}
-                  value={form.cc_client_secret}
-                  onChange={(e) => setForm((f) => ({ ...f, cc_client_secret: e.target.value }))}
-                />
-                <Button size="icon" variant="ghost" onClick={() => setShowSecret(!showSecret)}>
-                  {showSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
-              </div>
-            </div>
-          </div>
-          <Button onClick={saveConnection} disabled={saving} className="w-full">
-            {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Saving…</> : isNew ? "Create Tenant" : "Save Connection"}
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Section B: Custom Fields Schema */}
-      {!isNew && (
+      {isNew ? (
+        /* New tenant: just show the connection form */
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Custom Fields Schema</CardTitle>
+            <CardTitle className="text-lg">CartonCloud Connection</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <UploadZone tab="consignmentData" isExtracting={extractingData} />
-              <UploadZone tab="consignmentItem" isExtracting={extractingItem} />
+              <div className="space-y-2">
+                <Label>Tenant Name</Label>
+                <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="My Warehouse" />
+              </div>
+              <div className="space-y-2">
+                <Label>CC Tenant ID</Label>
+                <Input value={form.cc_tenant_id} onChange={(e) => setForm((f) => ({ ...f, cc_tenant_id: e.target.value }))} placeholder="12345" />
+              </div>
             </div>
-
-            {customFields.length > 0 && (
-              <>
-                <Tabs value={activeFieldTab} onValueChange={(v) => setActiveFieldTab(v as any)}>
-                  <TabsList>
-                    <TabsTrigger value="consignmentData">
-                      Consignment Data ({customFields.filter((f) => f.tab === "consignmentData").length})
-                    </TabsTrigger>
-                    <TabsTrigger value="consignmentItem">
-                      Consignment Item ({customFields.filter((f) => f.tab === "consignmentItem").length})
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
-
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Short Name</TableHead>
-                      <TableHead>Field Type</TableHead>
-                      <TableHead>Field Name</TableHead>
-                      <TableHead>Mapped Field</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredFields.map((f, i) => (
-                      <TableRow key={i}>
-                        <TableCell className="text-sm">{f.name}</TableCell>
-                        <TableCell className="text-sm">{f.shortName}</TableCell>
-                        <TableCell><Badge variant="outline">{f.fieldType}</Badge></TableCell>
-                        <TableCell className="text-sm font-mono text-xs">{f.fieldName}</TableCell>
-                        <TableCell className="text-sm font-mono text-xs">{f.mappedField}</TableCell>
-                      </TableRow>
-                    ))}
-                    {filteredFields.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground py-4">
-                          No fields for this tab. Upload a screenshot to extract them.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-
-                <Button onClick={saveSchema} disabled={savingSchema} className="w-full">
-                  {savingSchema ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Saving…</> : "Save Schema"}
-                </Button>
-              </>
-            )}
+            <div className="space-y-2">
+              <Label>API Base URL</Label>
+              <Input value={form.cc_api_base_url} onChange={(e) => setForm((f) => ({ ...f, cc_api_base_url: e.target.value }))} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Client ID</Label>
+                <Input value={form.cc_client_id} onChange={(e) => setForm((f) => ({ ...f, cc_client_id: e.target.value }))} placeholder="client-id" />
+              </div>
+              <div className="space-y-2">
+                <Label>Client Secret</Label>
+                <div className="flex gap-2">
+                  <Input type={showSecret ? "text" : "password"} value={form.cc_client_secret} onChange={(e) => setForm((f) => ({ ...f, cc_client_secret: e.target.value }))} />
+                  <Button size="icon" variant="ghost" onClick={() => setShowSecret(!showSecret)}>
+                    {showSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
+            </div>
+            <Button onClick={saveConnection} disabled={saving} className="w-full">
+              {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Saving…</> : "Create Tenant"}
+            </Button>
           </CardContent>
         </Card>
+      ) : (
+        /* Existing tenant: tabbed layout */
+        <Tabs defaultValue="customers">
+          <TabsList>
+            <TabsTrigger value="customers">Customers ({customers.length})</TabsTrigger>
+            <TabsTrigger value="connection">Connection</TabsTrigger>
+            <TabsTrigger value="customFields">Custom Fields</TabsTrigger>
+          </TabsList>
+
+          {/* ─── CUSTOMERS TAB ─── */}
+          <TabsContent value="customers" className="space-y-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-lg">Customers</CardTitle>
+                <Button onClick={() => navigate(`/tenants/${id}/customers/new`)}><Plus className="h-4 w-4 mr-2" /> Add Customer</Button>
+              </CardHeader>
+              <CardContent>
+                {customers.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">No customers yet. Add one to get started.</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Customer Name</TableHead>
+                        <TableHead>CC Customer ID</TableHead>
+                        <TableHead>Inbound Email</TableHead>
+                        <TableHead>Sample</TableHead>
+                        <TableHead className="w-12"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {customers.map((c) => (
+                        <TableRow key={c.id} className="cursor-pointer" onClick={() => navigate(`/tenants/${id}/customers/${c.id}`)}>
+                          <TableCell className="font-medium">{c.customer_name}</TableCell>
+                          <TableCell>{c.cc_customer_id}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{c.inbound_email_slug}@notify.yourdomain.com</TableCell>
+                          <TableCell>
+                            <Badge variant={c.sample_extraction ? "default" : "outline"}>
+                              {c.sample_extraction ? "Verified" : "None"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button size="icon" variant="ghost" onClick={(e) => e.stopPropagation()}>
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete {c.customer_name}?</AlertDialogTitle>
+                                  <AlertDialogDescription>This will permanently remove this customer profile.</AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={(e) => deleteCustomer(c.id, e)}>Delete</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ─── CONNECTION TAB ─── */}
+          <TabsContent value="connection" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">CartonCloud Connection</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Tenant Name</Label>
+                    <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="My Warehouse" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>CC Tenant ID</Label>
+                    <Input value={form.cc_tenant_id} onChange={(e) => setForm((f) => ({ ...f, cc_tenant_id: e.target.value }))} placeholder="12345" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>API Base URL</Label>
+                  <Input value={form.cc_api_base_url} onChange={(e) => setForm((f) => ({ ...f, cc_api_base_url: e.target.value }))} />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Client ID</Label>
+                    <Input value={form.cc_client_id} onChange={(e) => setForm((f) => ({ ...f, cc_client_id: e.target.value }))} placeholder="client-id" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Client Secret</Label>
+                    <div className="flex gap-2">
+                      <Input type={showSecret ? "text" : "password"} value={form.cc_client_secret} onChange={(e) => setForm((f) => ({ ...f, cc_client_secret: e.target.value }))} />
+                      <Button size="icon" variant="ghost" onClick={() => setShowSecret(!showSecret)}>
+                        {showSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+                <Button onClick={saveConnection} disabled={saving} className="w-full">
+                  {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Saving…</> : "Save Connection"}
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ─── CUSTOM FIELDS TAB ─── */}
+          <TabsContent value="customFields" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Custom Fields Schema</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <UploadZone tab="consignmentData" isExtracting={extractingData} />
+                  <UploadZone tab="consignmentItem" isExtracting={extractingItem} />
+                </div>
+
+                {customFields.length > 0 && (
+                  <>
+                    <Tabs value={activeFieldTab} onValueChange={(v) => setActiveFieldTab(v as any)}>
+                      <TabsList>
+                        <TabsTrigger value="consignmentData">
+                          Consignment Data ({customFields.filter((f) => f.tab === "consignmentData").length})
+                        </TabsTrigger>
+                        <TabsTrigger value="consignmentItem">
+                          Consignment Item ({customFields.filter((f) => f.tab === "consignmentItem").length})
+                        </TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Short Name</TableHead>
+                          <TableHead>Field Type</TableHead>
+                          <TableHead>Field Name</TableHead>
+                          <TableHead>Mapped Field</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredFields.map((f, i) => (
+                          <TableRow key={i}>
+                            <TableCell className="text-sm">{f.name}</TableCell>
+                            <TableCell className="text-sm">{f.shortName}</TableCell>
+                            <TableCell><Badge variant="outline">{f.fieldType}</Badge></TableCell>
+                            <TableCell className="text-sm font-mono text-xs">{f.fieldName}</TableCell>
+                            <TableCell className="text-sm font-mono text-xs">{f.mappedField}</TableCell>
+                          </TableRow>
+                        ))}
+                        {filteredFields.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={5} className="text-center text-muted-foreground py-4">
+                              No fields for this tab. Upload a screenshot to extract them.
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+
+                    <Button onClick={saveSchema} disabled={savingSchema} className="w-full">
+                      {savingSchema ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Saving…</> : "Save Schema"}
+                    </Button>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       )}
     </div>
   );
