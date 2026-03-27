@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { ConsignmentPayload } from "@/types/consignment";
@@ -27,15 +27,6 @@ interface CustomerProfile {
   created_at: string;
 }
 
-interface DraftRow {
-  id: string;
-  status: string;
-  source: string;
-  created_at: string;
-  from_email: string | null;
-  error_message: string | null;
-  mapped_payload: any;
-}
 
 interface CustomFieldDef {
   name: string;
@@ -79,8 +70,6 @@ const CustomerDetailPage = () => {
   // Custom fields extracted values
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>({});
 
-  // History state
-  const [drafts, setDrafts] = useState<DraftRow[]>([]);
 
   useEffect(() => {
     // Load tenant's custom field schema directly using tenantId from URL
@@ -109,12 +98,6 @@ const CustomerDetailPage = () => {
         });
         setSampleExtraction(p.sample_extraction as ConsignmentPayload | null);
       }
-      const { data: draftData } = await supabase
-        .from("consignment_drafts")
-        .select("id, status, source, created_at, from_email, error_message, mapped_payload")
-        .eq("customer_profile_id", id!)
-        .order("created_at", { ascending: false });
-      if (draftData) setDrafts(draftData as DraftRow[]);
     };
     load();
   }, [id, isNew]);
@@ -239,12 +222,6 @@ const CustomerDetailPage = () => {
       if (data?.error) throw new Error(data.error);
       setSubmitResult({ success: true });
       toast({ title: "Submitted!", description: "Consignment submitted to CartonCloud." });
-      const { data: draftData } = await supabase
-        .from("consignment_drafts")
-        .select("id, status, source, created_at, from_email, error_message, mapped_payload")
-        .eq("customer_profile_id", id!)
-        .order("created_at", { ascending: false });
-      if (draftData) setDrafts(draftData as DraftRow[]);
     } catch (err: any) {
       setSubmitResult({ success: false, error: err.message });
       toast({ title: "Submission failed", description: err.message, variant: "destructive" });
@@ -267,7 +244,7 @@ const CustomerDetailPage = () => {
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="sample">Sample Mapping</TabsTrigger>
           {!isNew && <TabsTrigger value="upload">Upload Invoice</TabsTrigger>}
-          {!isNew && <TabsTrigger value="history">History</TabsTrigger>}
+          
         </TabsList>
 
         {/* ─── PROFILE TAB ─── */}
@@ -434,48 +411,6 @@ const CustomerDetailPage = () => {
           </TabsContent>
         )}
 
-        {/* ─── HISTORY TAB ─── */}
-        {!isNew && (
-          <TabsContent value="history">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Consignment History</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {drafts.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8">No consignments yet for this customer.</p>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Source</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>From Email</TableHead>
-                        <TableHead>Error</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {drafts.map((d) => (
-                        <TableRow key={d.id}>
-                          <TableCell className="text-sm">{new Date(d.created_at).toLocaleString()}</TableCell>
-                          <TableCell><Badge variant="outline">{d.source}</Badge></TableCell>
-                          <TableCell>
-                            <Badge variant={d.status === "submitted" ? "default" : d.status === "failed" ? "destructive" : "secondary"}>
-                              {d.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{d.from_email || "—"}</TableCell>
-                          <TableCell className="text-sm text-destructive">{d.error_message || ""}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        )}
       </Tabs>
     </div>
   );
