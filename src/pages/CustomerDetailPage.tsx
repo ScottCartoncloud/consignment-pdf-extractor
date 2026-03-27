@@ -27,15 +27,6 @@ interface CustomerProfile {
   created_at: string;
 }
 
-interface DraftRow {
-  id: string;
-  status: string;
-  source: string;
-  created_at: string;
-  from_email: string | null;
-  error_message: string | null;
-  mapped_payload: any;
-}
 
 interface CustomFieldDef {
   name: string;
