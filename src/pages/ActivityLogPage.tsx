@@ -197,7 +197,7 @@ const ActivityLogPage = () => {
                   <SelectItem value="all">All</SelectItem>
                   <SelectItem value="submitted">Success</SelectItem>
                   <SelectItem value="failed">Error</SelectItem>
-                  <SelectItem value="draft">Draft</SelectItem>
+                  
                 </SelectContent>
               </Select>
             </div>
