@@ -132,20 +132,24 @@ Return them in a "customFields" object on the response, keyed by fieldName:
       throw new Error("Failed to parse AI response as JSON");
     }
 
-    // Save draft
-    const { data: draft, error: draftError } = await supabase
-      .from("consignment_drafts")
-      .insert({
-        raw_extraction: extracted,
-        mapped_payload: extracted,
-        status: "draft",
-        from_email: extracted.fromEmail || "",
-        customer_profile_id: customerProfileId || null,
-      })
-      .select()
-      .single();
+    // Save draft only for real uploads (when customerProfileId is provided), not sample mapping
+    let draft: any = null;
+    if (customerProfileId) {
+      const { data, error: draftError } = await supabase
+        .from("consignment_drafts")
+        .insert({
+          raw_extraction: extracted,
+          mapped_payload: extracted,
+          status: "draft",
+          from_email: extracted.fromEmail || "",
+          customer_profile_id: customerProfileId,
+        })
+        .select()
+        .single();
 
-    if (draftError) console.error("Failed to save draft:", draftError);
+      if (draftError) console.error("Failed to save draft:", draftError);
+      draft = data;
+    }
 
     return new Response(JSON.stringify({ extraction: extracted, draftId: draft?.id }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -66,7 +66,7 @@ const ActivityLogPage = () => {
     let query = supabase
       .from("consignment_drafts")
       .select("id, status, source, created_at, from_email, error_message, customer_profile_id, mapped_payload, cc_response, raw_extraction", { count: "exact" })
-      .order("created_at", { ascending: false });
+      .in("status", filterStatus !== "all" ? [filterStatus] : ["submitted", "failed"])
 
     if (filterCustomer !== "all") query = query.eq("customer_profile_id", filterCustomer);
     if (filterStatus !== "all") query = query.eq("status", filterStatus);
@@ -77,7 +77,7 @@ const ActivityLogPage = () => {
       query = query.lte("created_at", end.toISOString());
     }
 
-    query = query.range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+    query = query.order("created_at", { ascending: false }).range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
     const { data, count } = await query;
     if (data) setDrafts(data as DraftRow[]);
@@ -197,7 +197,7 @@ const ActivityLogPage = () => {
                   <SelectItem value="all">All</SelectItem>
                   <SelectItem value="submitted">Success</SelectItem>
                   <SelectItem value="failed">Error</SelectItem>
-                  <SelectItem value="draft">Draft</SelectItem>
+                  
                 </SelectContent>
               </Select>
             </div>
