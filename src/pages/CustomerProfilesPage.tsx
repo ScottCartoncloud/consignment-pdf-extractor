@@ -227,7 +227,7 @@ const CustomerProfilesPage = () => {
         </Card>
 
         {/* Sample PDF section — upload or side-by-side */}
-        {!sampleExtraction && !isExtracting && !pdfBlobUrl ? (
+        {!sampleExtraction && !isExtracting && !pdfDataUrl ? (
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Sample PDF Verification</CardTitle>
