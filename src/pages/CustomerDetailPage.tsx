@@ -98,12 +98,6 @@ const CustomerDetailPage = () => {
         });
         setSampleExtraction(p.sample_extraction as ConsignmentPayload | null);
       }
-      const { data: draftData } = await supabase
-        .from("consignment_drafts")
-        .select("id, status, source, created_at, from_email, error_message, mapped_payload")
-        .eq("customer_profile_id", id!)
-        .order("created_at", { ascending: false });
-      if (draftData) setDrafts(draftData as DraftRow[]);
     };
     load();
   }, [id, isNew]);
