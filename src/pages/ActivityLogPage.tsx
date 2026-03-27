@@ -77,7 +77,7 @@ const ActivityLogPage = () => {
       query = query.lte("created_at", end.toISOString());
     }
 
-    query = query.range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+    query = query.order("created_at", { ascending: false }).range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
     const { data, count } = await query;
     if (data) setDrafts(data as DraftRow[]);
