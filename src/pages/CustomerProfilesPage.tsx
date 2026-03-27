@@ -333,15 +333,21 @@ const CustomerProfilesPage = () => {
                                 <TableHead className="text-xs w-14">L</TableHead>
                                 <TableHead className="text-xs w-14">W</TableHead>
                                 <TableHead className="text-xs w-14">H</TableHead>
+                                <TableHead className="text-xs w-14">Pallets</TableHead>
+                                <TableHead className="text-xs w-14">Spaces</TableHead>
+                                <TableHead className="text-xs w-16">Cubic</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
                               {sampleExtraction.items.map((item, i) => (
                                 <TableRow key={i}>
                                   <TableCell className="p-1"><Input className="h-7 text-xs" value={item.description} onChange={(e) => updateSampleItem(i, "description", e.target.value)} /></TableCell>
-                                  {(["quantity", "weight", "length", "width", "height"] as const).map((f) => (
-                                    <TableCell key={f} className="p-1"><Input className="h-7 text-xs" type="number" value={item[f]} onChange={(e) => updateSampleItem(i, f, e.target.value)} /></TableCell>
+                                  {(["quantity", "weight", "length", "width", "height", "pallets", "spaces"] as const).map((f) => (
+                                    <TableCell key={f} className="p-1"><Input className="h-7 text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" type="number" value={item[f]} onChange={(e) => updateSampleItem(i, f, e.target.value)} /></TableCell>
                                   ))}
+                                  <TableCell className="p-1">
+                                    <Input className="h-7 text-xs bg-muted/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" type="number" readOnly value={((item.length * item.width * item.height) / 1000000 * item.quantity).toFixed(3)} />
+                                  </TableCell>
                                 </TableRow>
                               ))}
                             </TableBody>
