@@ -1,12 +1,10 @@
 import { NavLink } from "react-router-dom";
-import { Upload, FileSearch, Users, Mail, Settings } from "lucide-react";
+import { Users, Activity, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const links = [
-  { to: "/", icon: Upload, label: "Upload" },
-  { to: "/profiles", icon: Users, label: "Customer Profiles" },
-  { to: "/review", icon: FileSearch, label: "Review" },
-  { to: "/email-mappings", icon: Mail, label: "Email Mappings" },
+  { to: "/profiles", icon: Users, label: "Customers" },
+  { to: "/log", icon: Activity, label: "Activity Log" },
   { to: "/settings", icon: Settings, label: "Settings" },
 ];
 
@@ -17,7 +15,6 @@ const AppSidebar = () => (
       <NavLink
         key={to}
         to={to}
-        end={to === "/"}
         className={({ isActive }) =>
           cn(
             "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
