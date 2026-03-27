@@ -56,7 +56,7 @@ const slugify = (text: string) =>
   text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
 const CustomerDetailPage = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id, tenantId } = useParams<{ id: string; tenantId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
   const isNew = id === "new";
