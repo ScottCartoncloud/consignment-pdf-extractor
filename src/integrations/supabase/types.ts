@@ -73,6 +73,7 @@ export type Database = {
           id: string
           inbound_email_slug: string
           sample_extraction: Json | null
+          tenant_id: string | null
         }
         Insert: {
           cc_customer_id: string
@@ -82,6 +83,7 @@ export type Database = {
           id?: string
           inbound_email_slug: string
           sample_extraction?: Json | null
+          tenant_id?: string | null
         }
         Update: {
           cc_customer_id?: string
@@ -91,8 +93,17 @@ export type Database = {
           id?: string
           inbound_email_slug?: string
           sample_extraction?: Json | null
+          tenant_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "customer_profiles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       email_customer_mappings: {
         Row: {
@@ -150,6 +161,39 @@ export type Database = {
           claude_api_key?: string
           created_at?: string
           id?: string
+        }
+        Relationships: []
+      }
+      tenants: {
+        Row: {
+          cc_api_base_url: string
+          cc_client_id: string
+          cc_client_secret: string
+          cc_tenant_id: string
+          created_at: string
+          custom_field_schema: Json | null
+          id: string
+          name: string
+        }
+        Insert: {
+          cc_api_base_url?: string
+          cc_client_id?: string
+          cc_client_secret?: string
+          cc_tenant_id: string
+          created_at?: string
+          custom_field_schema?: Json | null
+          id?: string
+          name: string
+        }
+        Update: {
+          cc_api_base_url?: string
+          cc_client_id?: string
+          cc_client_secret?: string
+          cc_tenant_id?: string
+          created_at?: string
+          custom_field_schema?: Json | null
+          id?: string
+          name?: string
         }
         Relationships: []
       }
