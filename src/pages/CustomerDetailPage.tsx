@@ -38,11 +38,6 @@ interface DraftRow {
   mapped_payload: any;
 }
 
-interface TenantOption {
-  id: string;
-  name: string;
-}
-
 interface CustomFieldDef {
   name: string;
   shortName: string;
