@@ -45,7 +45,7 @@ Return a JSON object with a single "fields" key containing the array of extracte
             content: [
               {
                 type: "image_url",
-                image_url: { url: `data:image/png;base64,${imageBase64}` },
+                image_url: { url: `data:${mediaType || "image/png"};base64,${imageBase64}` },
               },
               {
                 type: "text",
