@@ -91,11 +91,6 @@ const CustomerProfilesPage = () => {
       return;
     }
 
-    // Create blob URL for the PDF viewer
-    if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
-    const blobUrl = URL.createObjectURL(file);
-    setPdfBlobUrl(blobUrl);
-
     setIsExtracting(true);
     try {
       const reader = new FileReader();
