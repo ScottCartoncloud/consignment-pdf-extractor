@@ -31,4 +31,6 @@ export interface ConsignmentPayload {
   type: string;
   fromEmail: string;
   customFields?: Record<string, string>;
+  pdfBase64?: string;
+  pdfFilename?: string;
 }

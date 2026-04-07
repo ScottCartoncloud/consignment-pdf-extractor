@@ -20,7 +20,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { payload, draftId, tenantId } = await req.json();
+    const { payload, draftId, tenantId, pdfBase64, pdfFilename } = await req.json();
     if (!payload) throw new Error("payload is required");
 
     const supabase = createClient(
@@ -217,6 +217,44 @@ serve(async (req) => {
         .from("consignment_drafts")
         .update({ status: "submitted", mapped_payload: ccPayload, cc_response: ccData, submitted_at: new Date().toISOString() })
         .eq("id", draftId);
+    }
+
+    // Attach PDF document to the consignment if provided
+    if (pdfBase64 && ccData?.id && tenantId) {
+      try {
+        const { data: tenantForDoc } = await supabase
+          .from("tenants")
+          .select("cc_api_base_url, cc_tenant_id")
+          .eq("id", tenantId)
+          .single();
+
+        if (tenantForDoc) {
+          const docUrl = `${tenantForDoc.cc_api_base_url.replace(/\/$/, "")}/tenants/${tenantForDoc.cc_tenant_id}/consignments/${ccData.id}/documents`;
+          const docPayload = {
+            type: "CONSIGNMENT_INVOICE",
+            content: {
+              name: pdfFilename || "consignment.pdf",
+              data: pdfBase64,
+            },
+          };
+          const docResponse = await fetch(docUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${accessToken}`,
+              "Accept-Version": "1",
+            },
+            body: JSON.stringify(docPayload),
+          });
+          console.log("Document attachment response:", docResponse.status);
+          if (!docResponse.ok) {
+            const docErr = await docResponse.text();
+            console.error("Failed to attach PDF document:", docErr);
+          }
+        }
+      } catch (docError) {
+        console.error("Error attaching PDF document:", docError);
+      }
     }
 
     return new Response(JSON.stringify({ success: true, consignment: ccData }), {

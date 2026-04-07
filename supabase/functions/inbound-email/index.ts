@@ -298,8 +298,9 @@ Return them in a "customFields" object on the response, keyed by fieldName:
       }
     }
 
-    // Process each consignment independently
+    // Process each consignment independently — attach PDF to first only
     const results: any[] = [];
+    let attachmentSent = false;
     for (const consignment of consignments) {
       try {
         // Save draft with source "email"
@@ -364,6 +365,38 @@ Return them in a "customFields" object on the response, keyed by fieldName:
             .from("consignment_drafts")
             .update({ status: "submitted", mapped_payload: ccPayload, cc_response: ccData, submitted_at: new Date().toISOString() })
             .eq("id", draftId);
+
+          // Attach PDF to first successfully submitted consignment only
+          if (!attachmentSent && ccData?.id && tenant) {
+            try {
+              const docUrl = `${tenant.cc_api_base_url.replace(/\/$/, "")}/tenants/${tenant.cc_tenant_id}/consignments/${ccData.id}/documents`;
+              const docPayload = {
+                type: "CONSIGNMENT_INVOICE",
+                content: {
+                  name: pdfAttachment.Name || "consignment.pdf",
+                  data: pdfBase64,
+                },
+              };
+              const docResponse = await fetch(docUrl, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${accessToken}`,
+                  "Accept-Version": "1",
+                },
+                body: JSON.stringify(docPayload),
+              });
+              console.log("Document attachment response:", docResponse.status, "for consignment:", ccData.id);
+              if (!docResponse.ok) {
+                const docErr = await docResponse.text();
+                console.error("Failed to attach PDF document:", docErr);
+              }
+              attachmentSent = true;
+            } catch (docError) {
+              console.error("Error attaching PDF document:", docError);
+            }
+          }
+
           results.push({ draftId, status: "submitted" });
         }
       } catch (consignmentErr) {
