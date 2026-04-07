@@ -22,6 +22,7 @@ interface PdfExtractionViewerProps {
   onExtract: (base64: string) => Promise<void>;
   showUpload?: boolean;
   showAddRemoveItems?: boolean;
+  showCodeColumn?: boolean;
   extractionHints?: string;
   lastPdfBase64?: string | null;
   onReExtract?: () => Promise<void>;
@@ -38,6 +39,7 @@ const PdfExtractionViewer = ({
   onExtract,
   showUpload = true,
   showAddRemoveItems = false,
+  showCodeColumn = false,
 }: PdfExtractionViewerProps) => {
   const { toast } = useToast();
 
@@ -79,7 +81,7 @@ const PdfExtractionViewer = ({
     onExtractionChange({ ...extraction, items });
   };
 
-  const hasCodeField = extraction?.items.some((item) => item.code !== undefined) ?? false;
+  const hasCodeField = showCodeColumn || (extraction?.items.some((item) => item.code !== undefined) ?? false);
 
   const addItem = () => {
     if (!extraction) return;

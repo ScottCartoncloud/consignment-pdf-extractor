@@ -315,6 +315,7 @@ const CustomerDetailPage = () => {
             onPdfDataUrl={setSamplePdfUrl}
             isExtracting={isSampleExtracting}
             onExtract={handleSampleExtract}
+            showCodeColumn={form.map_item_codes}
           />
 
           {/* Custom fields section */}
@@ -384,6 +385,7 @@ const CustomerDetailPage = () => {
               isExtracting={isUploadExtracting}
               onExtract={handleUploadExtract}
               showAddRemoveItems
+              showCodeColumn={form.map_item_codes}
             />
 
             {/* Custom fields section */}
