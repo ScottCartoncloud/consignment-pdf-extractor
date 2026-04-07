@@ -21,16 +21,18 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Fetch extraction hints from profile if provided
+    // Fetch extraction hints and map_item_codes from profile if provided
     let hints = extractionHints || "";
-    if (customerProfileId && !hints) {
+    let mapItemCodes = false;
+    if (customerProfileId) {
       const { data: profile } = await supabase
         .from("customer_profiles")
-        .select("extraction_hints")
+        .select("extraction_hints, map_item_codes")
         .eq("id", customerProfileId)
         .maybeSingle();
-      if (profile?.extraction_hints) {
-        hints = profile.extraction_hints;
+      if (profile) {
+        if (!hints && profile.extraction_hints) hints = profile.extraction_hints;
+        mapItemCodes = profile.map_item_codes ?? false;
       }
     }
 
@@ -73,6 +75,12 @@ If there is only one consignment, return the single object as before with no wra
 
     if (hints) {
       systemPrompt += `\n\nAdditional context for this customer: ${hints}`;
+    }
+
+    if (mapItemCodes) {
+      systemPrompt += `\n\nFor each item, also extract the product code or SKU reference from the PDF (e.g. a "Code", "SKU", "Product Code" or similar column) and include it as a "code" field on each item object:
+{ "description": "", "code": "", "quantity": 0, ... }
+If no code is found for an item, use an empty string.`;
     }
 
     // Inject custom field schema into prompt

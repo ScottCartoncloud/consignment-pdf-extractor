@@ -1,0 +1,1 @@
+ALTER TABLE public.customer_profiles ADD COLUMN map_item_codes BOOLEAN NOT NULL DEFAULT false;

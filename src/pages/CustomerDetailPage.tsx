@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
 
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -47,7 +48,7 @@ const CustomerDetailPage = () => {
   const isNew = id === "new";
 
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
-  const [form, setForm] = useState({ customer_name: "", cc_customer_id: "", inbound_email_slug: "", extraction_hints: "", tenant_id: tenantId || "" });
+  const [form, setForm] = useState({ customer_name: "", cc_customer_id: "", inbound_email_slug: "", extraction_hints: "", tenant_id: tenantId || "", map_item_codes: false });
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [customFieldSchema, setCustomFieldSchema] = useState<CustomFieldDef[]>([]);
@@ -95,6 +96,7 @@ const CustomerDetailPage = () => {
           inbound_email_slug: p.inbound_email_slug,
           extraction_hints: p.extraction_hints || "",
           tenant_id: p.tenant_id || tenantId || "",
+          map_item_codes: (p as any).map_item_codes ?? false,
         });
         setSampleExtraction(p.sample_extraction as ConsignmentPayload | null);
       }
@@ -126,6 +128,7 @@ const CustomerDetailPage = () => {
         extraction_hints: form.extraction_hints || null,
         sample_extraction: sampleExtraction as any,
         tenant_id: tenantId,
+        map_item_codes: form.map_item_codes,
       };
       if (isNew) {
         const { data, error } = await supabase.from("customer_profiles").insert(row).select().single();
@@ -281,6 +284,19 @@ const CustomerDetailPage = () => {
                   onChange={(e) => setForm((f) => ({ ...f, extraction_hints: e.target.value }))}
                   placeholder='e.g. "Weight is always in kg. The collect address is the sender in the top-left."'
                   rows={4}
+                />
+              </div>
+              <div className="flex items-center justify-between rounded-lg border p-4">
+                <div className="space-y-0.5">
+                  <Label htmlFor="map-item-codes">Map item product codes</Label>
+                  <p className="text-sm text-muted-foreground">
+                    When enabled, the AI will attempt to extract a product code per line item from the PDF and map it to the CartonCloud product reference field. Use extraction hints to specify which column contains the code if needed.
+                  </p>
+                </div>
+                <Switch
+                  id="map-item-codes"
+                  checked={form.map_item_codes}
+                  onCheckedChange={(checked) => setForm((f) => ({ ...f, map_item_codes: checked }))}
                 />
               </div>
               <Button onClick={saveProfile} disabled={saving} className="w-full">

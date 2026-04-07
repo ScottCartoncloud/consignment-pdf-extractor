@@ -108,6 +108,13 @@ function buildCcPayload(consignment: any, ccCustomerId: string, customFieldSchem
           ? parseFloat(((item.length * item.width * item.height) / 1000000 * item.quantity).toFixed(3))
           : 0,
       },
+      ...(item.code ? {
+        details: {
+          product: {
+            references: { code: item.code }
+          }
+        }
+      } : {}),
     })),
   };
 }
@@ -136,7 +143,7 @@ serve(async (req) => {
     // Look up customer profile by slug
     const { data: profile } = await supabase
       .from("customer_profiles")
-      .select("id, tenant_id, extraction_hints, cc_customer_id")
+      .select("id, tenant_id, extraction_hints, cc_customer_id, map_item_codes")
       .eq("inbound_email_slug", slug)
       .maybeSingle();
 
@@ -164,6 +171,7 @@ serve(async (req) => {
     const tenantId = profile.tenant_id;
     const ccCustomerId = profile.cc_customer_id;
     const hints = profile.extraction_hints || "";
+    const mapItemCodes = profile.map_item_codes ?? false;
 
     // Fetch tenant data (credentials + custom field schema)
     let tenant: any = null;
@@ -207,6 +215,12 @@ If there is only one consignment, return the single object as before with no wra
 
     if (hints) {
       systemPrompt += `\n\nAdditional context for this customer: ${hints}`;
+    }
+
+    if (mapItemCodes) {
+      systemPrompt += `\n\nFor each item, also extract the product code or SKU reference from the PDF (e.g. a "Code", "SKU", "Product Code" or similar column) and include it as a "code" field on each item object:
+{ "description": "", "code": "", "quantity": 0, ... }
+If no code is found for an item, use an empty string.`;
     }
 
     if (customFieldSchema.length > 0) {
