@@ -45,6 +45,73 @@ const toAddressObj = (addr: any, fallbackCompanyName = "") => {
   };
 };
 
+function buildCcPayload(consignment: any, ccCustomerId: string, customFieldSchema: any[]) {
+  // Apply custom field mappings
+  const customFields = consignment.customFields || {};
+  const submissionPayload = { ...consignment };
+
+  if (Object.keys(customFields).length > 0 && customFieldSchema.length > 0) {
+    if (!submissionPayload.details) submissionPayload.details = {};
+    if (!submissionPayload.properties) submissionPayload.properties = {};
+
+    for (const field of customFieldSchema) {
+      const value = customFields[field.fieldName];
+      if (value === undefined || value === "") continue;
+
+      if (field.tab === "consignmentItem") {
+        if (submissionPayload.items) {
+          for (const item of submissionPayload.items) {
+            if (!item.properties) item.properties = {};
+            item.properties[field.mappedField] = value;
+          }
+        }
+      } else if (field.mappedField && field.mappedField.includes(".")) {
+        setNestedValue(submissionPayload.details, field.mappedField, value);
+      } else if (field.mappedField) {
+        submissionPayload.properties[field.mappedField] = value;
+      }
+    }
+  }
+
+  delete submissionPayload.customFields;
+
+  return {
+    references: {
+      customer: submissionPayload.references?.customer || "",
+    },
+    customer: {
+      id: ccCustomerId,
+    },
+    details: {
+      collect: {
+        address: toAddressObj(submissionPayload.collectAddress, "Collect Address"),
+      },
+      deliver: {
+        address: toAddressObj(submissionPayload.deliverAddress, "Delivery Address"),
+        instructions: submissionPayload.deliverAddress?.instructions || "",
+      },
+      type: submissionPayload.type || "DELIVERY",
+      ...submissionPayload.details,
+    },
+    properties: submissionPayload.properties || {},
+    items: (submissionPayload.items || []).map((item: any) => ({
+      properties: {
+        description: item.description || "",
+        ...(item.properties || {}),
+      },
+      measures: {
+        quantity: item.quantity || 0,
+        weight: item.weight || 0,
+        pallets: item.pallets || 0,
+        spaces: item.spaces || 0,
+        cubic: item.length && item.width && item.height
+          ? parseFloat(((item.length * item.width * item.height) / 1000000 * item.quantity).toFixed(3))
+          : 0,
+      },
+    })),
+  };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -113,7 +180,7 @@ serve(async (req) => {
       }
     }
 
-    // Build AI prompt (same logic as extract-consignment)
+    // Build AI prompt
     let systemPrompt = `You are a consignment data extraction assistant. Given a PDF document, extract consignment/delivery information and return a JSON object matching this exact structure:
 
 {
@@ -131,7 +198,12 @@ Rules:
 - Use empty string for text fields if not found
 - Default country to "Australia" if not specified
 - Default type to "DELIVERY"
-- Return ONLY valid JSON, no markdown or explanation`;
+- Return ONLY valid JSON, no markdown or explanation
+
+If the document contains multiple separate consignments (e.g. multiple delivery dockets or order references on separate pages), return them as:
+{ "consignments": [ {...}, {...} ] }
+where each item matches the single consignment structure above.
+If there is only one consignment, return the single object as before with no wrapper.`;
 
     if (hints) {
       systemPrompt += `\n\nAdditional context for this customer: ${hints}`;
@@ -199,37 +271,16 @@ Return them in a "customFields" object on the response, keyed by fieldName:
       throw new Error("Failed to parse AI response as JSON");
     }
 
-    // Save draft with source "email"
-    const { data: draft, error: draftError } = await supabase
-      .from("consignment_drafts")
-      .insert({
-        raw_extraction: extracted,
-        mapped_payload: extracted,
-        status: "draft",
-        source: "email",
-        from_email: payload.From || "",
-        customer_profile_id: customerProfileId,
-      })
-      .select()
-      .single();
+    // Normalize to array of consignments
+    const isMultiple = extracted.consignments && Array.isArray(extracted.consignments);
+    const consignments = isMultiple ? extracted.consignments : [extracted];
 
-    if (draftError) {
-      console.error("Failed to save draft:", draftError);
-      throw new Error("Failed to save consignment draft");
-    }
-
-    const draftId = draft.id;
-
-    // ─── Auto-submit to CartonCloud ───
-    try {
-      if (!tenant || !tenant.cc_client_id || !tenant.cc_client_secret) {
-        throw new Error("Tenant CartonCloud credentials not configured");
-      }
-
-      // OAuth2 client credentials flow
+    // Obtain OAuth token once (shared across all consignments)
+    let accessToken: string | null = null;
+    let ccUrl = "";
+    if (tenant && tenant.cc_client_id && tenant.cc_client_secret) {
       const tokenUrl = `${tenant.cc_api_base_url.replace(/\/$/, "")}/uaa/oauth/token`;
       const basicAuth = btoa(`${tenant.cc_client_id}:${tenant.cc_client_secret}`);
-
       const tokenResponse = await fetch(tokenUrl, {
         method: "POST",
         headers: {
@@ -238,133 +289,93 @@ Return them in a "customFields" object on the response, keyed by fieldName:
         },
         body: "grant_type=client_credentials",
       });
-
-      if (!tokenResponse.ok) {
-        const errText = await tokenResponse.text();
-        throw new Error(`OAuth token request failed: ${tokenResponse.status} - ${errText}`);
+      if (tokenResponse.ok) {
+        const tokenData = await tokenResponse.json();
+        accessToken = tokenData.access_token;
+        ccUrl = `${tenant.cc_api_base_url.replace(/\/$/, "")}/tenants/${tenant.cc_tenant_id}/consignments`;
+      } else {
+        console.error("OAuth token request failed:", tokenResponse.status);
       }
-
-      const tokenData = await tokenResponse.json();
-      const accessToken = tokenData.access_token;
-      const ccUrl = `${tenant.cc_api_base_url.replace(/\/$/, "")}/tenants/${tenant.cc_tenant_id}/consignments`;
-
-      // Apply custom field mappings
-      const customFields = extracted.customFields || {};
-      const submissionPayload = { ...extracted };
-
-      if (Object.keys(customFields).length > 0 && customFieldSchema.length > 0) {
-        if (!submissionPayload.details) submissionPayload.details = {};
-        if (!submissionPayload.properties) submissionPayload.properties = {};
-
-        for (const field of customFieldSchema) {
-          const value = customFields[field.fieldName];
-          if (value === undefined || value === "") continue;
-
-          if (field.tab === "consignmentItem") {
-            if (submissionPayload.items) {
-              for (const item of submissionPayload.items) {
-                if (!item.properties) item.properties = {};
-                item.properties[field.mappedField] = value;
-              }
-            }
-          } else if (field.mappedField && field.mappedField.includes(".")) {
-            setNestedValue(submissionPayload.details, field.mappedField, value);
-          } else if (field.mappedField) {
-            submissionPayload.properties[field.mappedField] = value;
-          }
-        }
-      }
-
-      delete submissionPayload.customFields;
-
-      // Build CartonCloud payload
-      const ccPayload = {
-        references: {
-          customer: submissionPayload.references?.customer || "",
-        },
-        customer: {
-          id: ccCustomerId,
-        },
-        details: {
-          collect: {
-            address: toAddressObj(submissionPayload.collectAddress, "Collect Address"),
-          },
-          deliver: {
-            address: toAddressObj(submissionPayload.deliverAddress, "Delivery Address"),
-            instructions: submissionPayload.deliverAddress?.instructions || "",
-          },
-          type: submissionPayload.type || "DELIVERY",
-          ...submissionPayload.details,
-        },
-        properties: submissionPayload.properties || {},
-        items: (submissionPayload.items || []).map((item: any) => ({
-          properties: {
-            description: item.description || "",
-            ...(item.properties || {}),
-          },
-          measures: {
-            quantity: item.quantity || 0,
-            weight: item.weight || 0,
-            pallets: item.pallets || 0,
-            spaces: item.spaces || 0,
-            cubic: item.length && item.width && item.height
-              ? parseFloat(((item.length * item.width * item.height) / 1000000 * item.quantity).toFixed(3))
-              : 0,
-          },
-        })),
-      };
-
-      const ccResponse = await fetch(ccUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${accessToken}`,
-          "Accept-Version": "1",
-        },
-        body: JSON.stringify(ccPayload),
-      });
-
-      const ccText = await ccResponse.text();
-      let ccData: any;
-      try { ccData = JSON.parse(ccText); } catch { ccData = { rawBody: ccText }; }
-
-      console.log("CC response status:", ccResponse.status);
-
-      if (!ccResponse.ok) {
-        const errorDetail = typeof ccData === "object" ? JSON.stringify(ccData) : ccText;
-        await supabase
-          .from("consignment_drafts")
-          .update({ status: "failed", mapped_payload: ccPayload, error_message: errorDetail.slice(0, 2000) })
-          .eq("id", draftId);
-
-        return new Response(JSON.stringify({ success: false, draftId, error: "CartonCloud submission failed" }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      // Success
-      await supabase
-        .from("consignment_drafts")
-        .update({ status: "submitted", mapped_payload: ccPayload, cc_response: ccData, submitted_at: new Date().toISOString() })
-        .eq("id", draftId);
-
-      return new Response(JSON.stringify({ success: true, draftId }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    } catch (submitErr) {
-      console.error("Auto-submit failed:", submitErr);
-      await supabase
-        .from("consignment_drafts")
-        .update({ status: "failed", error_message: (submitErr instanceof Error ? submitErr.message : "Unknown submission error").slice(0, 2000) })
-        .eq("id", draftId);
-
-      return new Response(JSON.stringify({ success: false, draftId, error: "auto-submit failed" }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
     }
+
+    // Process each consignment independently
+    const results: any[] = [];
+    for (const consignment of consignments) {
+      try {
+        // Save draft with source "email"
+        const { data: draft, error: draftError } = await supabase
+          .from("consignment_drafts")
+          .insert({
+            raw_extraction: consignment,
+            mapped_payload: consignment,
+            status: "draft",
+            source: "email",
+            from_email: payload.From || "",
+            customer_profile_id: customerProfileId,
+          })
+          .select()
+          .single();
+
+        if (draftError) {
+          console.error("Failed to save draft:", draftError);
+          results.push({ status: "failed", error: "Failed to save draft" });
+          continue;
+        }
+
+        const draftId = draft.id;
+
+        if (!accessToken) {
+          await supabase
+            .from("consignment_drafts")
+            .update({ status: "failed", error_message: "Tenant CartonCloud credentials not configured or OAuth failed" })
+            .eq("id", draftId);
+          results.push({ draftId, status: "failed", error: "No credentials" });
+          continue;
+        }
+
+        // Build and submit CC payload
+        const ccPayload = buildCcPayload(consignment, ccCustomerId, customFieldSchema);
+
+        const ccResponse = await fetch(ccUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${accessToken}`,
+            "Accept-Version": "1",
+          },
+          body: JSON.stringify(ccPayload),
+        });
+
+        const ccText = await ccResponse.text();
+        let ccData: any;
+        try { ccData = JSON.parse(ccText); } catch { ccData = { rawBody: ccText }; }
+
+        console.log("CC response status:", ccResponse.status, "for draft:", draftId);
+
+        if (!ccResponse.ok) {
+          const errorDetail = typeof ccData === "object" ? JSON.stringify(ccData) : ccText;
+          await supabase
+            .from("consignment_drafts")
+            .update({ status: "failed", mapped_payload: ccPayload, error_message: errorDetail.slice(0, 2000) })
+            .eq("id", draftId);
+          results.push({ draftId, status: "failed", error: "CartonCloud submission failed" });
+        } else {
+          await supabase
+            .from("consignment_drafts")
+            .update({ status: "submitted", mapped_payload: ccPayload, cc_response: ccData, submitted_at: new Date().toISOString() })
+            .eq("id", draftId);
+          results.push({ draftId, status: "submitted" });
+        }
+      } catch (consignmentErr) {
+        console.error("Error processing consignment:", consignmentErr);
+        results.push({ status: "failed", error: consignmentErr instanceof Error ? consignmentErr.message : "Unknown error" });
+      }
+    }
+
+    return new Response(JSON.stringify({ success: true, count: consignments.length, results }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (e) {
     console.error("inbound-email error:", e);
     // Always return 200 to prevent Postmark retries

@@ -64,7 +64,12 @@ Rules:
 - Use empty string for text fields if not found
 - Default country to "Australia" if not specified
 - Default type to "DELIVERY"
-- Return ONLY valid JSON, no markdown or explanation`;
+- Return ONLY valid JSON, no markdown or explanation
+
+If the document contains multiple separate consignments (e.g. multiple delivery dockets or order references on separate pages), return them as:
+{ "consignments": [ {...}, {...} ] }
+where each item matches the single consignment structure above.
+If there is only one consignment, return the single object as before with no wrapper.`;
 
     if (hints) {
       systemPrompt += `\n\nAdditional context for this customer: ${hints}`;
@@ -132,26 +137,48 @@ Return them in a "customFields" object on the response, keyed by fieldName:
       throw new Error("Failed to parse AI response as JSON");
     }
 
-    // Save draft only for real uploads (when customerProfileId is provided), not sample mapping
-    let draft: any = null;
-    if (customerProfileId) {
-      const { data, error: draftError } = await supabase
-        .from("consignment_drafts")
-        .insert({
-          raw_extraction: extracted,
-          mapped_payload: extracted,
-          status: "draft",
-          from_email: extracted.fromEmail || "",
-          customer_profile_id: customerProfileId,
-        })
-        .select()
-        .single();
+    // Normalize to array of consignments
+    const isMultiple = extracted.consignments && Array.isArray(extracted.consignments);
+    const consignments = isMultiple ? extracted.consignments : [extracted];
 
-      if (draftError) console.error("Failed to save draft:", draftError);
-      draft = data;
+    // Save drafts only for real uploads (when customerProfileId is provided)
+    const draftIds: string[] = [];
+    if (customerProfileId) {
+      for (const consignment of consignments) {
+        const { data, error: draftError } = await supabase
+          .from("consignment_drafts")
+          .insert({
+            raw_extraction: consignment,
+            mapped_payload: consignment,
+            status: "draft",
+            from_email: consignment.fromEmail || "",
+            customer_profile_id: customerProfileId,
+          })
+          .select()
+          .single();
+
+        if (draftError) {
+          console.error("Failed to save draft:", draftError);
+        } else if (data) {
+          draftIds.push(data.id);
+        }
+      }
     }
 
-    return new Response(JSON.stringify({ extraction: extracted, draftId: draft?.id }), {
+    // Build response with backward compatibility
+    const response: any = {
+      extractions: consignments,
+      draftIds,
+      count: consignments.length,
+    };
+
+    // Backward compat: if single consignment, also include top-level extraction/draftId
+    if (consignments.length === 1) {
+      response.extraction = consignments[0];
+      response.draftId = draftIds[0] || null;
+    }
+
+    return new Response(JSON.stringify(response), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
