@@ -14,6 +14,7 @@ export interface DeliverAddress extends Address {
 
 export interface ConsignmentItem {
   description: string;
+  code?: string;
   quantity: number;
   weight: number;
   length: number;

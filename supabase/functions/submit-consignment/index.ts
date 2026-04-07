@@ -180,6 +180,13 @@ serve(async (req) => {
             ? parseFloat(((item.length * item.width * item.height) / 1000000 * item.quantity).toFixed(3))
             : 0,
         },
+        ...(item.code ? {
+          details: {
+            product: {
+              references: { code: item.code }
+            }
+          }
+        } : {}),
       })),
     };
 
