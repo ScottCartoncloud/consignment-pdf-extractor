@@ -89,6 +89,7 @@ function buildCcPayload(consignment: any, ccCustomerId: string, customFieldSchem
       deliver: {
         address: toAddressObj(submissionPayload.deliverAddress, "Delivery Address"),
         instructions: submissionPayload.deliverAddress?.instructions || "",
+        ...(submissionPayload.requiredDate ? { requiredDate: submissionPayload.requiredDate } : {}),
       },
       type: submissionPayload.type || "DELIVERY",
       ...submissionPayload.details,

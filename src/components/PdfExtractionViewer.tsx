@@ -199,10 +199,14 @@ const PdfExtractionViewer = ({
                 {/* References */}
                 <div>
                   <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">References</h4>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     <div>
                       <Label className="text-xs">Customer Reference</Label>
                       <Input className="h-8 text-sm" value={extraction.references.customer} onChange={(e) => onExtractionChange({ ...extraction, references: { ...extraction.references, customer: e.target.value } })} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Required Delivery Date</Label>
+                      <Input className="h-8 text-sm" type="date" value={extraction.requiredDate || ""} onChange={(e) => onExtractionChange({ ...extraction, requiredDate: e.target.value })} />
                     </div>
                     <div>
                       <Label className="text-xs">Type</Label>
