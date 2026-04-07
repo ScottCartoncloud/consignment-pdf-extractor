@@ -75,9 +75,11 @@ const PdfExtractionViewer = ({
   const updateItem = (index: number, field: keyof ConsignmentItem, value: string) => {
     if (!extraction) return;
     const items = [...extraction.items];
-    (items[index] as any)[field] = field === "description" ? value : Number(value) || 0;
+    (items[index] as any)[field] = field === "description" || field === "code" ? value : Number(value) || 0;
     onExtractionChange({ ...extraction, items });
   };
+
+  const hasCodeField = extraction?.items.some((item) => item.code !== undefined) ?? false;
 
   const addItem = () => {
     if (!extraction) return;
