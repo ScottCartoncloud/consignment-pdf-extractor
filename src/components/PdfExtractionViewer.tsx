@@ -75,9 +75,11 @@ const PdfExtractionViewer = ({
   const updateItem = (index: number, field: keyof ConsignmentItem, value: string) => {
     if (!extraction) return;
     const items = [...extraction.items];
-    (items[index] as any)[field] = field === "description" ? value : Number(value) || 0;
+    (items[index] as any)[field] = field === "description" || field === "code" ? value : Number(value) || 0;
     onExtractionChange({ ...extraction, items });
   };
+
+  const hasCodeField = extraction?.items.some((item) => item.code !== undefined) ?? false;
 
   const addItem = () => {
     if (!extraction) return;
@@ -215,6 +217,7 @@ const PdfExtractionViewer = ({
                       <TableHeader>
                         <TableRow>
                           <TableHead className="text-xs">Description</TableHead>
+                          {hasCodeField && <TableHead className="text-xs w-20">Code</TableHead>}
                           <TableHead className="text-xs w-14">Qty</TableHead>
                           <TableHead className="text-xs w-16">Weight</TableHead>
                           <TableHead className="text-xs w-14">L</TableHead>
@@ -230,6 +233,9 @@ const PdfExtractionViewer = ({
                         {extraction.items.map((item, i) => (
                           <TableRow key={i}>
                             <TableCell className="p-1"><Input className="h-7 text-xs" value={item.description} onChange={(e) => updateItem(i, "description", e.target.value)} /></TableCell>
+                            {hasCodeField && (
+                              <TableCell className="p-1"><Input className="h-7 text-xs" value={item.code || ""} onChange={(e) => updateItem(i, "code", e.target.value)} /></TableCell>
+                            )}
                             {(["quantity", "weight", "length", "width", "height", "pallets", "spaces"] as const).map((f) => (
                               <TableCell key={f} className="p-1"><Input className={numInputClass} type="number" value={item[f]} onChange={(e) => updateItem(i, f, e.target.value)} /></TableCell>
                             ))}
