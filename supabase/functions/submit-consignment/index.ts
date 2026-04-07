@@ -161,6 +161,7 @@ serve(async (req) => {
         deliver: {
           address: toAddressObj(payload.deliverAddress, "Delivery Address"),
           instructions: payload.deliverAddress?.instructions || "",
+          ...(payload.requiredDate ? { requiredDate: payload.requiredDate } : {}),
         },
         type: payload.type || "DELIVERY",
         ...payload.details,

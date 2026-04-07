@@ -89,6 +89,7 @@ function buildCcPayload(consignment: any, ccCustomerId: string, customFieldSchem
       deliver: {
         address: toAddressObj(submissionPayload.deliverAddress, "Delivery Address"),
         instructions: submissionPayload.deliverAddress?.instructions || "",
+        ...(submissionPayload.requiredDate ? { requiredDate: submissionPayload.requiredDate } : {}),
       },
       type: submissionPayload.type || "DELIVERY",
       ...submissionPayload.details,
@@ -197,7 +198,8 @@ serve(async (req) => {
   "items": [{ "description": "", "quantity": 0, "weight": 0, "length": 0, "width": 0, "height": 0, "pallets": 0, "spaces": 0 }],
   "references": { "customer": "" },
   "type": "DELIVERY",
-  "fromEmail": ""
+  "fromEmail": "",
+  "requiredDate": ""
 }
 
 Rules:
@@ -206,6 +208,7 @@ Rules:
 - Use empty string for text fields if not found
 - Default country to "Australia" if not specified
 - Default type to "DELIVERY"
+- Extract the required delivery date if present. Format as YYYY-MM-DD. Use empty string if not found.
 - Return ONLY valid JSON, no markdown or explanation
 
 If the document contains multiple separate consignments (e.g. multiple delivery dockets or order references on separate pages), return them as:
