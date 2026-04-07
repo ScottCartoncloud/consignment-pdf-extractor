@@ -72,6 +72,7 @@ export type Database = {
           extraction_hints: string | null
           id: string
           inbound_email_slug: string
+          map_item_codes: boolean
           sample_extraction: Json | null
           tenant_id: string | null
         }
@@ -82,6 +83,7 @@ export type Database = {
           extraction_hints?: string | null
           id?: string
           inbound_email_slug: string
+          map_item_codes?: boolean
           sample_extraction?: Json | null
           tenant_id?: string | null
         }
@@ -92,6 +94,7 @@ export type Database = {
           extraction_hints?: string | null
           id?: string
           inbound_email_slug?: string
+          map_item_codes?: boolean
           sample_extraction?: Json | null
           tenant_id?: string | null
         }
