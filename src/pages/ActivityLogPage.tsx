@@ -331,15 +331,27 @@ const ActivityLogPage = () => {
                                 {d.error_message || "No error message recorded."}
                               </p>
                             </div>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={(e) => { e.stopPropagation(); handleDownloadPayload(d); }}
-                              className="text-xs"
-                            >
-                              <Download className="h-3.5 w-3.5 mr-1.5" />
-                              Download payload
-                            </Button>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => { e.stopPropagation(); handleRetry(d); }}
+                                disabled={retryingId === d.id}
+                                className="text-xs"
+                              >
+                                <RotateCw className={cn("h-3.5 w-3.5 mr-1.5", retryingId === d.id && "animate-spin")} />
+                                {retryingId === d.id ? "Retrying…" : "Retry"}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => { e.stopPropagation(); handleDownloadPayload(d); }}
+                                className="text-xs"
+                              >
+                                <Download className="h-3.5 w-3.5 mr-1.5" />
+                                Download payload
+                              </Button>
+                            </div>
                           </div>
                         </TableCell>
                       </TableRow>
