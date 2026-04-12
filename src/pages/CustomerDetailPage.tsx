@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ConsignmentPayload } from "@/types/consignment";
+import { ConsignmentPayload, SaleOrderPayload, PurchaseOrderPayload, EntityType } from "@/types/consignment";
 import PdfExtractionViewer from "@/components/PdfExtractionViewer";
 import {
   ArrowLeft, Loader2, Copy, CheckCircle2, Lightbulb, RefreshCw, Send,
@@ -56,13 +56,13 @@ const CustomerDetailPage = () => {
   const [customFieldSchema, setCustomFieldSchema] = useState<CustomFieldDef[]>([]);
 
   // Sample mapping state
-  const [sampleExtraction, setSampleExtraction] = useState<ConsignmentPayload | null>(null);
+  const [sampleExtraction, setSampleExtraction] = useState<ConsignmentPayload | SaleOrderPayload | PurchaseOrderPayload | null>(null);
   const [samplePdfUrl, setSamplePdfUrl] = useState<string | null>(null);
   const [sampleBase64, setSampleBase64] = useState<string | null>(null);
   const [isSampleExtracting, setIsSampleExtracting] = useState(false);
 
   // Upload invoice state
-  const [uploadExtraction, setUploadExtraction] = useState<ConsignmentPayload | null>(null);
+  const [uploadExtraction, setUploadExtraction] = useState<ConsignmentPayload | SaleOrderPayload | PurchaseOrderPayload | null>(null);
   const [uploadPdfUrl, setUploadPdfUrl] = useState<string | null>(null);
   const [uploadBase64, setUploadBase64] = useState<string | null>(null);
   const [isUploadExtracting, setIsUploadExtracting] = useState(false);
@@ -336,6 +336,7 @@ const CustomerDetailPage = () => {
             isExtracting={isSampleExtracting}
             onExtract={handleSampleExtract}
             showCodeColumn={form.map_item_codes}
+            entityType={form.entity_type as EntityType}
           />
 
           {/* Custom fields section */}
@@ -406,6 +407,7 @@ const CustomerDetailPage = () => {
               onExtract={handleUploadExtract}
               showAddRemoveItems
               showCodeColumn={form.map_item_codes}
+              entityType={form.entity_type as EntityType}
             />
 
             {/* Custom fields section */}
