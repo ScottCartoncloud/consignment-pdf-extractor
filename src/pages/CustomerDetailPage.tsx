@@ -162,7 +162,7 @@ const CustomerDetailPage = () => {
     setIsSampleExtracting(true);
     try {
       const { data, error } = await supabase.functions.invoke("extract-consignment", {
-        body: { pdfBase64: base64, extractionHints: form.extraction_hints || undefined, tenantId: form.tenant_id || undefined },
+        body: { pdfBase64: base64, extractionHints: form.extraction_hints || undefined, tenantId: form.tenant_id || undefined, entityType: form.entity_type },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -181,7 +181,7 @@ const CustomerDetailPage = () => {
     setIsSampleExtracting(true);
     try {
       const { data, error } = await supabase.functions.invoke("extract-consignment", {
-        body: { pdfBase64: sampleBase64, extractionHints: form.extraction_hints || undefined, tenantId: form.tenant_id || undefined },
+        body: { pdfBase64: sampleBase64, extractionHints: form.extraction_hints || undefined, tenantId: form.tenant_id || undefined, entityType: form.entity_type },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -201,7 +201,7 @@ const CustomerDetailPage = () => {
     setSubmitResult(null);
     try {
       const { data, error } = await supabase.functions.invoke("extract-consignment", {
-        body: { pdfBase64: base64, customerProfileId: id, extractionHints: form.extraction_hints || undefined, tenantId: form.tenant_id || undefined },
+        body: { pdfBase64: base64, customerProfileId: id, extractionHints: form.extraction_hints || undefined, tenantId: form.tenant_id || undefined, entityType: form.entity_type },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
