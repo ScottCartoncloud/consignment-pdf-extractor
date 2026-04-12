@@ -135,6 +135,16 @@ serve(async (req) => {
       return map[upper] || raw;
     };
 
+    // Infer default country from tenant API base URL
+    let defaultCountry = "Australia";
+    if (tenantId) {
+      // Re-use tenant data already fetched above if available
+      const baseUrl = (ccUrl || "").toLowerCase();
+      if (baseUrl.includes("api.na.cartoncloud")) {
+        defaultCountry = "United States";
+      }
+    }
+
     const toAddressObj = (addr: any, fallbackCompanyName = "") => {
       const stateName = normalizeStateName(addr?.state);
       return {
@@ -143,7 +153,7 @@ serve(async (req) => {
         suburb: addr?.suburb || "",
         ...(stateName ? { state: { name: stateName } } : {}),
         postcode: addr?.postcode || "",
-        country: { name: addr?.country || "Australia" },
+        country: { name: addr?.country || defaultCountry },
       };
     };
 

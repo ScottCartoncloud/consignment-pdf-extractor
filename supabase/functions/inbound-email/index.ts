@@ -33,7 +33,7 @@ const normalizeStateName = (value: string | undefined) => {
   return map[upper] || raw;
 };
 
-const toAddressObj = (addr: any, fallbackCompanyName = "") => {
+const toAddressObj = (addr: any, fallbackCompanyName = "", defaultCountry = "Australia") => {
   const stateName = normalizeStateName(addr?.state);
   return {
     companyName: addr?.companyName?.trim() || addr?.contactName?.trim() || fallbackCompanyName,
@@ -41,7 +41,7 @@ const toAddressObj = (addr: any, fallbackCompanyName = "") => {
     suburb: addr?.suburb || "",
     ...(stateName ? { state: { name: stateName } } : {}),
     postcode: addr?.postcode || "",
-    country: { name: addr?.country || "Australia" },
+    country: { name: addr?.country || defaultCountry },
   };
 };
 
