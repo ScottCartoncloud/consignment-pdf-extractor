@@ -222,8 +222,9 @@ const CustomerDetailPage = () => {
     setSubmitResult(null);
     try {
       const payloadWithCustomFields = { ...uploadExtraction, customFields: customFieldValues, ccCustomerId: form.cc_customer_id };
+      const pdfFilename = form.entity_type === "sale_order" ? "sale-order.pdf" : form.entity_type === "purchase_order" ? "purchase-order.pdf" : "consignment.pdf";
       const { data, error } = await supabase.functions.invoke("submit-consignment", {
-        body: { payload: payloadWithCustomFields, draftId: uploadDraftId, tenantId: form.tenant_id, pdfBase64: uploadBase64, pdfFilename: "consignment.pdf" },
+        body: { payload: payloadWithCustomFields, draftId: uploadDraftId, tenantId: form.tenant_id, pdfBase64: uploadBase64, pdfFilename, entityType: form.entity_type },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);

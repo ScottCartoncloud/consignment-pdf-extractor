@@ -16,24 +16,42 @@ function setNestedValue(obj: any, path: string, value: any) {
   current[keys[keys.length - 1]] = value;
 }
 
+const normalizeStateName = (value: string | undefined) => {
+  if (!value) return undefined;
+  const raw = value.trim();
+  const upper = raw.toUpperCase();
+  const map: Record<string, string> = {
+    NSW: "New South Wales",
+    VIC: "Victoria",
+    QLD: "Queensland",
+    SA: "South Australia",
+    WA: "Western Australia",
+    TAS: "Tasmania",
+    NT: "Northern Territory",
+    ACT: "Australian Capital Territory",
+  };
+  return map[upper] || raw;
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { payload, draftId, tenantId, pdfBase64, pdfFilename } = await req.json();
+    const { payload, draftId, tenantId, pdfBase64, pdfFilename, entityType: rawEntityType } = await req.json();
     if (!payload) throw new Error("payload is required");
+
+    const entityType = rawEntityType || "consignment";
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Determine credentials source: tenant or legacy settings
     let ccUrl: string;
     let accessToken: string;
+    let defaultCountry = "Australia";
 
     if (tenantId) {
-      // Use tenant-specific OAuth2 credentials
       const { data: tenant, error: tenantError } = await supabase
         .from("tenants")
         .select("cc_api_base_url, cc_client_id, cc_client_secret, cc_tenant_id, custom_field_schema")
@@ -64,7 +82,21 @@ serve(async (req) => {
 
       const tokenData = await tokenResponse.json();
       accessToken = tokenData.access_token;
-      ccUrl = `${tenant.cc_api_base_url.replace(/\/$/, "")}/tenants/${tenant.cc_tenant_id}/consignments`;
+
+      // Set API endpoint based on entity type
+      const baseApiUrl = `${tenant.cc_api_base_url.replace(/\/$/, "")}/tenants/${tenant.cc_tenant_id}`;
+      if (entityType === "sale_order") {
+        ccUrl = `${baseApiUrl}/outbound-orders`;
+      } else if (entityType === "purchase_order") {
+        ccUrl = `${baseApiUrl}/inbound-orders`;
+      } else {
+        ccUrl = `${baseApiUrl}/consignments`;
+      }
+
+      // Infer default country
+      if (tenant.cc_api_base_url.includes("api.na.cartoncloud")) {
+        defaultCountry = "United States";
+      }
 
       // Apply custom field mappings to payload
       const customFields = payload.customFields || {};
@@ -75,7 +107,6 @@ serve(async (req) => {
         if (!payload.properties) payload.properties = {};
 
         for (const field of schema) {
-          // Skip fields marked as "don't send" (default true for serviceType)
           const dontSend = field.dontSend ?? (field.mappedField && field.mappedField.includes("serviceType"));
           if (dontSend) continue;
 
@@ -83,7 +114,6 @@ serve(async (req) => {
           if (value === undefined || value === "") continue;
 
           if (field.tab === "consignmentItem") {
-            // Apply to each item
             if (payload.items) {
               for (const item of payload.items) {
                 if (!item.properties) item.properties = {};
@@ -98,7 +128,6 @@ serve(async (req) => {
         }
       }
 
-      // Remove customFields from payload before sending to CC
       delete payload.customFields;
     } else {
       // Legacy: use settings table
@@ -116,35 +145,6 @@ serve(async (req) => {
       accessToken = settings.cc_api_key;
     }
 
-    // Transform internal payload to CartonCloud API format
-    // CC expects state/country as reference objects and companyName to be non-empty.
-    const normalizeStateName = (value: string | undefined) => {
-      if (!value) return undefined;
-      const raw = value.trim();
-      const upper = raw.toUpperCase();
-      const map: Record<string, string> = {
-        NSW: "New South Wales",
-        VIC: "Victoria",
-        QLD: "Queensland",
-        SA: "South Australia",
-        WA: "Western Australia",
-        TAS: "Tasmania",
-        NT: "Northern Territory",
-        ACT: "Australian Capital Territory",
-      };
-      return map[upper] || raw;
-    };
-
-    // Infer default country from tenant API base URL
-    let defaultCountry = "Australia";
-    if (tenantId) {
-      // Re-use tenant data already fetched above if available
-      const baseUrl = (ccUrl || "").toLowerCase();
-      if (baseUrl.includes("api.na.cartoncloud")) {
-        defaultCountry = "United States";
-      }
-    }
-
     const toAddressObj = (addr: any, fallbackCompanyName = "") => {
       const stateName = normalizeStateName(addr?.state);
       return {
@@ -157,49 +157,128 @@ serve(async (req) => {
       };
     };
 
-    const ccPayload = {
-      references: {
-        customer: payload.references?.customer || "",
-      },
-      customer: {
-        id: payload.ccCustomerId,
-      },
-      details: {
-        collect: {
-          address: toAddressObj(payload.collectAddress, "Collect Address"),
+    // Build CC payload based on entity type
+    let ccPayload: any;
+
+    if (entityType === "sale_order") {
+      ccPayload = {
+        type: "OUTBOUND",
+        references: {
+          customer: payload.references?.customer || "",
         },
-        deliver: {
-          address: toAddressObj(payload.deliverAddress, "Delivery Address"),
-          instructions: payload.deliverAddress?.instructions || "",
-          ...(payload.requiredDate ? { requiredDate: payload.requiredDate } : {}),
+        customer: {
+          id: payload.ccCustomerId,
         },
-        type: payload.type || "DELIVERY",
-        ...payload.details,
-      },
-      properties: payload.properties || {},
-      items: (payload.items || []).map((item: any) => ({
-        properties: {
-          description: item.description || "",
-          ...(item.properties || {}),
+        details: {
+          deliver: {
+            address: toAddressObj(payload.deliverAddress, "Delivery Address"),
+            requiredDate: payload.deliverRequiredDate || undefined,
+            instructions: payload.instructions || "",
+          },
+          collect: {
+            requiredDate: payload.collectRequiredDate || undefined,
+          },
+          instructions: payload.instructions || "",
+          ...payload.details,
         },
-        measures: {
-          quantity: item.quantity || 0,
-          weight: item.weight || 0,
-          pallets: item.pallets || 0,
-          spaces: item.spaces || 0,
-          cubic: item.length && item.width && item.height
-            ? parseFloat(((item.length * item.width * item.height) / 1000000 * item.quantity).toFixed(3))
-            : 0,
-        },
-        ...(item.code ? {
+        properties: payload.properties || {},
+        items: (payload.items || []).map((item: any) => ({
           details: {
             product: {
-              references: { code: item.code }
+              references: { code: item.code },
+            },
+            unitOfMeasure: {
+              type: item.unitOfMeasure || "UNITS",
+            },
+          },
+          measures: {
+            quantity: item.quantity || 0,
+          },
+          properties: item.properties || {},
+        })),
+        ...(payload.warehouse ? { warehouse: { name: payload.warehouse } } : {}),
+      };
+    } else if (entityType === "purchase_order") {
+      ccPayload = {
+        type: "INBOUND",
+        references: {
+          customer: payload.references?.customer || "",
+        },
+        customer: {
+          id: payload.ccCustomerId,
+        },
+        details: {
+          arrivalDate: payload.arrivalDate || undefined,
+          instructions: payload.instructions || "",
+          ...payload.details,
+        },
+        properties: payload.properties || {},
+        items: (payload.items || []).map((item: any) => ({
+          details: {
+            product: {
+              references: { code: item.code },
+            },
+            unitOfMeasure: {
+              type: item.unitOfMeasure || "UNITS",
+            },
+          },
+          measures: {
+            quantity: item.quantity || 0,
+          },
+          properties: {
+            ...(item.batch ? { batch: item.batch } : {}),
+            ...(item.expiryDate ? { expiryDate: item.expiryDate } : {}),
+            ...(item.properties || {}),
+          },
+        })),
+        ...(payload.warehouse ? { warehouse: { name: payload.warehouse } } : {}),
+      };
+    } else {
+      // Consignment (existing behavior)
+      ccPayload = {
+        references: {
+          customer: payload.references?.customer || "",
+        },
+        customer: {
+          id: payload.ccCustomerId,
+        },
+        details: {
+          collect: {
+            address: toAddressObj(payload.collectAddress, "Collect Address"),
+          },
+          deliver: {
+            address: toAddressObj(payload.deliverAddress, "Delivery Address"),
+            instructions: payload.deliverAddress?.instructions || "",
+            ...(payload.requiredDate ? { requiredDate: payload.requiredDate } : {}),
+          },
+          type: payload.type || "DELIVERY",
+          ...payload.details,
+        },
+        properties: payload.properties || {},
+        items: (payload.items || []).map((item: any) => ({
+          properties: {
+            description: item.description || "",
+            ...(item.properties || {}),
+          },
+          measures: {
+            quantity: item.quantity || 0,
+            weight: item.weight || 0,
+            pallets: item.pallets || 0,
+            spaces: item.spaces || 0,
+            cubic: item.length && item.width && item.height
+              ? parseFloat(((item.length * item.width * item.height) / 1000000 * item.quantity).toFixed(3))
+              : 0,
+          },
+          ...(item.code ? {
+            details: {
+              product: {
+                references: { code: item.code }
+              }
             }
-          }
-        } : {}),
-      })),
-    };
+          } : {}),
+        })),
+      };
+    }
 
     const ccResponse = await fetch(ccUrl, {
       method: "POST",
@@ -237,45 +316,58 @@ serve(async (req) => {
         .eq("id", draftId);
     }
 
-    // Attach PDF document to the consignment if provided
+    // Attach PDF document based on entity type
     if (pdfBase64 && ccData?.id && tenantId) {
-      try {
-        const { data: tenantForDoc } = await supabase
-          .from("tenants")
-          .select("cc_api_base_url, cc_tenant_id")
-          .eq("id", tenantId)
-          .single();
+      // purchase_order: CC API does not support document attachment for inbound orders
+      if (entityType !== "purchase_order") {
+        try {
+          const { data: tenantForDoc } = await supabase
+            .from("tenants")
+            .select("cc_api_base_url, cc_tenant_id")
+            .eq("id", tenantId)
+            .single();
 
-        if (tenantForDoc) {
-          const docUrl = `${tenantForDoc.cc_api_base_url.replace(/\/$/, "")}/tenants/${tenantForDoc.cc_tenant_id}/consignments/${ccData.id}/documents`;
-          const docPayload = {
-            type: "CONSIGNMENT_INVOICE",
-            content: {
-              name: pdfFilename || "consignment.pdf",
-              data: pdfBase64,
-            },
-          };
-          const docResponse = await fetch(docUrl, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${accessToken}`,
-              "Accept-Version": "1",
-            },
-            body: JSON.stringify(docPayload),
-          });
-          console.log("Document attachment response:", docResponse.status);
-          if (!docResponse.ok) {
-            const docErr = await docResponse.text();
-            console.error("Failed to attach PDF document:", docErr);
+          if (tenantForDoc) {
+            let docEntityPath: string;
+            let docType: string;
+            if (entityType === "sale_order") {
+              docEntityPath = "outbound-orders";
+              docType = "OUTBOUND_ORDER_INVOICE";
+            } else {
+              docEntityPath = "consignments";
+              docType = "CONSIGNMENT_INVOICE";
+            }
+
+            const docUrl = `${tenantForDoc.cc_api_base_url.replace(/\/$/, "")}/tenants/${tenantForDoc.cc_tenant_id}/${docEntityPath}/${ccData.id}/documents`;
+            const docPayload = {
+              type: docType,
+              content: {
+                name: pdfFilename || "document.pdf",
+                data: pdfBase64,
+              },
+            };
+            const docResponse = await fetch(docUrl, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${accessToken}`,
+                "Accept-Version": "1",
+              },
+              body: JSON.stringify(docPayload),
+            });
+            console.log("Document attachment response:", docResponse.status);
+            if (!docResponse.ok) {
+              const docErr = await docResponse.text();
+              console.error("Failed to attach PDF document:", docErr);
+            }
           }
+        } catch (docError) {
+          console.error("Error attaching PDF document:", docError);
         }
-      } catch (docError) {
-        console.error("Error attaching PDF document:", docError);
       }
     }
 
-    return new Response(JSON.stringify({ success: true, consignment: ccData }), {
+    return new Response(JSON.stringify({ success: true, data: ccData }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
