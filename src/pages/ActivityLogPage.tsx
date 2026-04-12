@@ -47,6 +47,7 @@ const ActivityLogPage = () => {
   const [totalCount, setTotalCount] = useState(0);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
 
   // Load profiles once
   useEffect(() => {
@@ -114,6 +115,48 @@ const ActivityLogPage = () => {
     a.download = `consignment-${d.id.slice(0, 8)}.json`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleRetry = async (d: DraftRow) => {
+    if (!d.customer_profile_id || !d.raw_extraction) {
+      toast.error("Missing data to retry this consignment");
+      return;
+    }
+
+    setRetryingId(d.id);
+    try {
+      // Fetch the customer profile to get tenant_id and cc_customer_id
+      const { data: profile } = await supabase
+        .from("customer_profiles")
+        .select("tenant_id, cc_customer_id")
+        .eq("id", d.customer_profile_id)
+        .single();
+
+      if (!profile) {
+        toast.error("Customer profile not found");
+        return;
+      }
+
+      const payload = {
+        ...d.raw_extraction,
+        ccCustomerId: profile.cc_customer_id,
+      };
+
+      const { data, error } = await supabase.functions.invoke("submit-consignment", {
+        body: { payload, draftId: d.id, tenantId: profile.tenant_id },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast.success("Consignment resubmitted successfully");
+      fetchDrafts();
+    } catch (err: any) {
+      toast.error(`Retry failed: ${err.message || "Unknown error"}`);
+      fetchDrafts();
+    } finally {
+      setRetryingId(null);
+    }
   };
 
   return (
