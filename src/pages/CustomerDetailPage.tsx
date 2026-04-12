@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,6 +27,7 @@ interface CustomerProfile {
   sample_extraction: any;
   tenant_id: string | null;
   created_at: string;
+  entity_type: string;
 }
 
 
@@ -48,7 +50,7 @@ const CustomerDetailPage = () => {
   const isNew = id === "new";
 
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
-  const [form, setForm] = useState({ customer_name: "", cc_customer_id: "", inbound_email_slug: "", extraction_hints: "", tenant_id: tenantId || "", map_item_codes: false });
+  const [form, setForm] = useState({ customer_name: "", cc_customer_id: "", inbound_email_slug: "", extraction_hints: "", tenant_id: tenantId || "", map_item_codes: false, entity_type: "consignment" });
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [customFieldSchema, setCustomFieldSchema] = useState<CustomFieldDef[]>([]);
@@ -97,6 +99,7 @@ const CustomerDetailPage = () => {
           extraction_hints: p.extraction_hints || "",
           tenant_id: p.tenant_id || tenantId || "",
           map_item_codes: (p as any).map_item_codes ?? false,
+          entity_type: (p as any).entity_type || "consignment",
         });
         setSampleExtraction(p.sample_extraction as ConsignmentPayload | null);
       }
@@ -129,6 +132,7 @@ const CustomerDetailPage = () => {
         sample_extraction: sampleExtraction as any,
         tenant_id: tenantId,
         map_item_codes: form.map_item_codes,
+        entity_type: form.entity_type,
       };
       if (isNew) {
         const { data, error } = await supabase.from("customer_profiles").insert(row).select().single();
@@ -257,6 +261,20 @@ const CustomerDetailPage = () => {
               <CardTitle className="text-lg">{isNew ? "Create" : "Edit"} Customer Profile</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Entity Type</Label>
+                <p className="text-sm text-muted-foreground">Determines what type of record is created in CartonCloud when PDFs are processed.</p>
+                <Select value={form.entity_type} onValueChange={(v) => setForm((f) => ({ ...f, entity_type: v }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="consignment">Consignment</SelectItem>
+                    <SelectItem value="sale_order">Sale Order</SelectItem>
+                    <SelectItem value="purchase_order">Purchase Order</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Customer Name</Label>
@@ -286,19 +304,21 @@ const CustomerDetailPage = () => {
                   rows={4}
                 />
               </div>
-              <div className="flex items-center justify-between rounded-lg border p-4">
-                <div className="space-y-0.5">
-                  <Label htmlFor="map-item-codes">Map item product codes</Label>
-                  <p className="text-sm text-muted-foreground">
-                    When enabled, the AI will attempt to extract a product code per line item from the PDF and map it to the CartonCloud product reference field. Use extraction hints to specify which column contains the code if needed.
-                  </p>
+              {form.entity_type === "consignment" && (
+                <div className="flex items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="map-item-codes">Map item product codes</Label>
+                    <p className="text-sm text-muted-foreground">
+                      When enabled, the AI will attempt to extract a product code per line item from the PDF and map it to the CartonCloud product reference field. Use extraction hints to specify which column contains the code if needed.
+                    </p>
+                  </div>
+                  <Switch
+                    id="map-item-codes"
+                    checked={form.map_item_codes}
+                    onCheckedChange={(checked) => setForm((f) => ({ ...f, map_item_codes: checked }))}
+                  />
                 </div>
-                <Switch
-                  id="map-item-codes"
-                  checked={form.map_item_codes}
-                  onCheckedChange={(checked) => setForm((f) => ({ ...f, map_item_codes: checked }))}
-                />
-              </div>
+              )}
               <Button onClick={saveProfile} disabled={saving} className="w-full">
                 {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Saving…</> : isNew ? "Create Profile" : "Save Changes"}
               </Button>
