@@ -360,7 +360,7 @@ Return them in a "customFields" object on the response, keyed by fieldName:
         }
 
         // Build and submit CC payload
-        const ccPayload = buildCcPayload(consignment, ccCustomerId, customFieldSchema);
+        const ccPayload = buildCcPayload(consignment, ccCustomerId, customFieldSchema, defaultCountry);
 
         const ccResponse = await fetch(ccUrl, {
           method: "POST",
