@@ -45,7 +45,7 @@ const toAddressObj = (addr: any, fallbackCompanyName = "", defaultCountry = "Aus
   };
 };
 
-function buildCcPayload(consignment: any, ccCustomerId: string, customFieldSchema: any[]) {
+function buildCcPayload(consignment: any, ccCustomerId: string, customFieldSchema: any[], defaultCountry = "Australia") {
   // Apply custom field mappings
   const customFields = consignment.customFields || {};
   const submissionPayload = { ...consignment };
@@ -84,10 +84,10 @@ function buildCcPayload(consignment: any, ccCustomerId: string, customFieldSchem
     },
     details: {
       collect: {
-        address: toAddressObj(submissionPayload.collectAddress, "Collect Address"),
+        address: toAddressObj(submissionPayload.collectAddress, "Collect Address", defaultCountry),
       },
       deliver: {
-        address: toAddressObj(submissionPayload.deliverAddress, "Delivery Address"),
+        address: toAddressObj(submissionPayload.deliverAddress, "Delivery Address", defaultCountry),
         instructions: submissionPayload.deliverAddress?.instructions || "",
         ...(submissionPayload.requiredDate ? { requiredDate: submissionPayload.requiredDate } : {}),
       },
