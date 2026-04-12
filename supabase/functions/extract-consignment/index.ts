@@ -36,24 +36,32 @@ serve(async (req) => {
       }
     }
 
-    // Fetch tenant's custom field schema if tenantId provided
+    // Fetch tenant's custom field schema and API base URL if tenantId provided
     let customFieldSchema: any[] = [];
+    let defaultCountry = "Australia";
     if (tenantId) {
       const { data: tenant } = await supabase
         .from("tenants")
-        .select("custom_field_schema")
+        .select("custom_field_schema, cc_api_base_url")
         .eq("id", tenantId)
         .maybeSingle();
       if (tenant?.custom_field_schema) {
         customFieldSchema = tenant.custom_field_schema as any[];
+      }
+      if (tenant?.cc_api_base_url) {
+        if (tenant.cc_api_base_url.includes("api.na.cartoncloud")) {
+          defaultCountry = "United States";
+        } else if (tenant.cc_api_base_url.includes("api.cartoncloud")) {
+          defaultCountry = "Australia";
+        }
       }
     }
 
     let systemPrompt = `You are a consignment data extraction assistant. Given a PDF document, extract consignment/delivery information and return a JSON object matching this exact structure:
 
 {
-  "collectAddress": { "companyName": "", "address1": "", "suburb": "", "state": "", "postcode": "", "country": "Australia" },
-  "deliverAddress": { "companyName": "", "contactName": "", "address1": "", "suburb": "", "state": "", "postcode": "", "country": "Australia", "instructions": "" },
+  "collectAddress": { "companyName": "", "address1": "", "suburb": "", "state": "", "postcode": "", "country": "" },
+  "deliverAddress": { "companyName": "", "contactName": "", "address1": "", "suburb": "", "state": "", "postcode": "", "country": "", "instructions": "" },
   "items": [{ "description": "", "quantity": 0, "weight": 0, "length": 0, "width": 0, "height": 0, "pallets": 0, "spaces": 0 }],
   "references": { "customer": "" },
   "type": "DELIVERY",
@@ -65,7 +73,7 @@ Rules:
 - Extract all available fields from the document
 - Use 0 for numeric fields if not found
 - Use empty string for text fields if not found
-- Default country to "Australia" if not specified
+- Infer the country from context (address, state, postcode). If the country cannot be determined, default to "${defaultCountry}"
 - Default type to "DELIVERY"
 - Extract the required delivery date if present. Format as YYYY-MM-DD. Use empty string if not found.
 - Return ONLY valid JSON, no markdown or explanation
