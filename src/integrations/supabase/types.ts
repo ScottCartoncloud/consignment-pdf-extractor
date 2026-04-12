@@ -19,6 +19,7 @@ export type Database = {
           cc_response: Json | null
           created_at: string
           customer_profile_id: string | null
+          entity_type: string
           error_message: string | null
           from_email: string | null
           id: string
@@ -32,6 +33,7 @@ export type Database = {
           cc_response?: Json | null
           created_at?: string
           customer_profile_id?: string | null
+          entity_type?: string
           error_message?: string | null
           from_email?: string | null
           id?: string
@@ -45,6 +47,7 @@ export type Database = {
           cc_response?: Json | null
           created_at?: string
           customer_profile_id?: string | null
+          entity_type?: string
           error_message?: string | null
           from_email?: string | null
           id?: string
@@ -69,6 +72,7 @@ export type Database = {
           cc_customer_id: string
           created_at: string
           customer_name: string
+          entity_type: string
           extraction_hints: string | null
           id: string
           inbound_email_slug: string
@@ -80,6 +84,7 @@ export type Database = {
           cc_customer_id: string
           created_at?: string
           customer_name: string
+          entity_type?: string
           extraction_hints?: string | null
           id?: string
           inbound_email_slug: string
@@ -91,6 +96,7 @@ export type Database = {
           cc_customer_id?: string
           created_at?: string
           customer_name?: string
+          entity_type?: string
           extraction_hints?: string | null
           id?: string
           inbound_email_slug?: string
