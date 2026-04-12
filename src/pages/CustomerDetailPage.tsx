@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ConsignmentPayload } from "@/types/consignment";
+import { ConsignmentPayload, SaleOrderPayload, PurchaseOrderPayload, EntityType } from "@/types/consignment";
 import PdfExtractionViewer from "@/components/PdfExtractionViewer";
 import {
   ArrowLeft, Loader2, Copy, CheckCircle2, Lightbulb, RefreshCw, Send,
@@ -336,6 +336,7 @@ const CustomerDetailPage = () => {
             isExtracting={isSampleExtracting}
             onExtract={handleSampleExtract}
             showCodeColumn={form.map_item_codes}
+            entityType={form.entity_type as EntityType}
           />
 
           {/* Custom fields section */}
@@ -406,6 +407,7 @@ const CustomerDetailPage = () => {
               onExtract={handleUploadExtract}
               showAddRemoveItems
               showCodeColumn={form.map_item_codes}
+              entityType={form.entity_type as EntityType}
             />
 
             {/* Custom fields section */}
