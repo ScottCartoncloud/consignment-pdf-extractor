@@ -11,8 +11,8 @@ serve(async (req) => {
   try {
     const { imageBase64, tab, mediaType } = await req.json();
     if (!imageBase64) throw new Error("imageBase64 is required");
-    if (!tab || !["consignmentData", "consignmentItem"].includes(tab)) {
-      throw new Error("tab must be 'consignmentData' or 'consignmentItem'");
+    if (!tab || !["consignmentData", "consignmentItem", "saleOrderData", "purchaseOrderData"].includes(tab)) {
+      throw new Error("tab must be 'consignmentData', 'consignmentItem', 'saleOrderData', or 'purchaseOrderData'");
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
