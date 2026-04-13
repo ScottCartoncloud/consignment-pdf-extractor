@@ -92,7 +92,6 @@ function buildCcPayload(entity: any, ccCustomerId: string, customFieldSchema: an
         },
         collect: { requiredDate: submissionPayload.collectRequiredDate || undefined },
         instructions: submissionPayload.instructions || "",
-        ...submissionPayload.details,
       },
       properties: submissionPayload.properties || {},
       items: (submissionPayload.items || []).map((item: any) => ({
@@ -115,7 +114,6 @@ function buildCcPayload(entity: any, ccCustomerId: string, customFieldSchema: an
       details: {
         arrivalDate: submissionPayload.arrivalDate || undefined,
         instructions: submissionPayload.instructions || "",
-        ...submissionPayload.details,
       },
       properties: submissionPayload.properties || {},
       items: (submissionPayload.items || []).map((item: any) => ({
