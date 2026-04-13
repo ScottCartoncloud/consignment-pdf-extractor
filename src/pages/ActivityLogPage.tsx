@@ -183,43 +183,49 @@ const ActivityLogPage = () => {
           <CardTitle className="text-xl">Activity Log</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Filters row */}
-          <div className="flex flex-wrap items-end gap-3">
-            {/* Date range */}
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-4">
-                <Label className="text-xs whitespace-nowrap">From</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className={cn("w-[170px] justify-start text-left font-normal", !dateFrom && "text-muted-foreground")}>
-                      <CalendarIcon className="mr-2 h-3.5 w-3.5" />
-                      {dateFrom ? format(dateFrom, "dd/MM/yyyy") : "Start date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus className="p-3 pointer-events-auto" />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              <span className="text-sm text-muted-foreground">–</span>
-
-              <div className="flex items-center gap-4">
-                <Label className="text-xs whitespace-nowrap">To</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className={cn("w-[170px] justify-start text-left font-normal", !dateTo && "text-muted-foreground")}>
-                      <CalendarIcon className="mr-2 h-3.5 w-3.5" />
-                      {dateTo ? format(dateTo, "dd/MM/yyyy") : "End date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus className="p-3 pointer-events-auto" />
-                  </PopoverContent>
-                </Popover>
-              </div>
+          {/* Date range row */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
+              <Label className="text-xs whitespace-nowrap">From</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-[170px] justify-start text-left font-normal", !dateFrom && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                    {dateFrom ? format(dateFrom, "dd/MM/yyyy") : "Start date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus className="p-3 pointer-events-auto" />
+                </PopoverContent>
+              </Popover>
             </div>
 
+            <span className="text-sm text-muted-foreground">–</span>
+
+            <div className="flex items-center gap-4">
+              <Label className="text-xs whitespace-nowrap">To</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-[170px] justify-start text-left font-normal", !dateTo && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                    {dateTo ? format(dateTo, "dd/MM/yyyy") : "End date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus className="p-3 pointer-events-auto" />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {(dateFrom || dateTo) && (
+              <Button variant="ghost" size="sm" className="text-xs" onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}>
+                Clear dates
+              </Button>
+            )}
+          </div>
+
+          {/* Filters row */}
+          <div className="flex flex-wrap items-end gap-3">
             {/* Reference search */}
             <div className="space-y-1.5">
               <Label className="text-xs">Reference</Label>
@@ -229,7 +235,7 @@ const ActivityLogPage = () => {
                   value={searchRef}
                   onChange={(e) => setSearchRef(e.target.value)}
                   placeholder="Search reference…"
-                  className="pl-8 w-[150px]"
+                  className="pl-8 w-[180px]"
                 />
               </div>
             </div>
@@ -238,7 +244,7 @@ const ActivityLogPage = () => {
             <div className="space-y-1.5">
               <Label className="text-xs">Customer</Label>
               <Select value={filterCustomer} onValueChange={setFilterCustomer}>
-                <SelectTrigger className="w-[160px]">
+                <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="All customers" />
                 </SelectTrigger>
                 <SelectContent>
@@ -281,10 +287,10 @@ const ActivityLogPage = () => {
               </Select>
             </div>
 
-            {/* Clear filters */}
+            {/* Clear all filters */}
             {hasActiveFilters && (
               <Button variant="ghost" size="sm" onClick={() => { setDateFrom(undefined); setDateTo(undefined); setSearchRef(""); setFilterCustomer("all"); setFilterStatus("all"); setFilterEntityType("all"); }}>
-                Clear
+                Clear all
               </Button>
             )}
           </div>
