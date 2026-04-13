@@ -305,21 +305,6 @@ const CustomerDetailPage = () => {
                   rows={4}
                 />
               </div>
-              {form.entity_type === "consignment" && (
-                <div className="flex items-center justify-between rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="map-item-codes">Map item product codes</Label>
-                    <p className="text-sm text-muted-foreground">
-                      When enabled, the AI will attempt to extract a product code per line item from the PDF and map it to the CartonCloud product reference field. Use extraction hints to specify which column contains the code if needed.
-                    </p>
-                  </div>
-                  <Switch
-                    id="map-item-codes"
-                    checked={form.map_item_codes}
-                    onCheckedChange={(checked) => setForm((f) => ({ ...f, map_item_codes: checked }))}
-                  />
-                </div>
-              )}
               <Button onClick={saveProfile} disabled={saving} className="w-full">
                 {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Saving…</> : isNew ? "Create Profile" : "Save Changes"}
               </Button>
@@ -329,6 +314,19 @@ const CustomerDetailPage = () => {
 
         {/* ─── SAMPLE MAPPING TAB ─── */}
         <TabsContent value="sample" className="space-y-4">
+          {form.entity_type === "consignment" && (
+            <div className="flex items-center justify-between rounded-lg border px-4 py-2.5">
+              <div>
+                <Label htmlFor="map-item-codes-sample" className="text-sm">Map item product codes</Label>
+                <p className="text-xs text-muted-foreground">Extract product codes from PDF line items and map to CartonCloud product references.</p>
+              </div>
+              <Switch
+                id="map-item-codes-sample"
+                checked={form.map_item_codes}
+                onCheckedChange={(checked) => setForm((f) => ({ ...f, map_item_codes: checked }))}
+              />
+            </div>
+          )}
           <PdfExtractionViewer
             extraction={sampleExtraction}
             onExtractionChange={setSampleExtraction}
@@ -399,6 +397,19 @@ const CustomerDetailPage = () => {
         {/* ─── UPLOAD INVOICE TAB ─── */}
         {!isNew && (
           <TabsContent value="upload" className="space-y-4">
+            {form.entity_type === "consignment" && (
+              <div className="flex items-center justify-between rounded-lg border px-4 py-2.5">
+                <div>
+                  <Label htmlFor="map-item-codes-upload" className="text-sm">Map item product codes</Label>
+                  <p className="text-xs text-muted-foreground">Extract product codes from PDF line items and map to CartonCloud product references.</p>
+                </div>
+                <Switch
+                  id="map-item-codes-upload"
+                  checked={form.map_item_codes}
+                  onCheckedChange={(checked) => setForm((f) => ({ ...f, map_item_codes: checked }))}
+                />
+              </div>
+            )}
             <PdfExtractionViewer
               extraction={uploadExtraction}
               onExtractionChange={setUploadExtraction}
