@@ -384,51 +384,39 @@ const TenantDetailPage = () => {
               <CardHeader>
                 <CardTitle className="text-lg">Custom Fields Schema</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Consignment Fields */}
-                <div className="space-y-2">
-                  <h4 className="text-sm font-bold">Consignment Fields</h4>
-                  <div className="grid grid-cols-2 gap-4">
+              <CardContent className="space-y-4">
+                <Tabs value={activeFieldTab} onValueChange={(v) => setActiveFieldTab(v as CustomFieldTab)}>
+                  <TabsList>
+                    <TabsTrigger value="consignmentData">
+                      Consignment Data ({customFields.filter((f) => f.tab === "consignmentData").length})
+                    </TabsTrigger>
+                    <TabsTrigger value="consignmentItem">
+                      Consignment Item ({customFields.filter((f) => f.tab === "consignmentItem").length})
+                    </TabsTrigger>
+                    <TabsTrigger value="saleOrderData">
+                      Sale Order ({customFields.filter((f) => f.tab === "saleOrderData").length})
+                    </TabsTrigger>
+                    <TabsTrigger value="purchaseOrderData">
+                      Purchase Order ({customFields.filter((f) => f.tab === "purchaseOrderData").length})
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="consignmentData" className="mt-4">
                     <UploadZone tab="consignmentData" isExtracting={extractingData} />
+                  </TabsContent>
+                  <TabsContent value="consignmentItem" className="mt-4">
                     <UploadZone tab="consignmentItem" isExtracting={extractingItem} />
-                  </div>
-                </div>
-
-                {/* Sale Order Fields */}
-                <div className="space-y-2">
-                  <h4 className="text-sm font-bold">Sale Order Fields</h4>
-                  <div className="grid grid-cols-2 gap-4">
+                  </TabsContent>
+                  <TabsContent value="saleOrderData" className="mt-4">
                     <UploadZone tab="saleOrderData" isExtracting={extractingSaleOrderData} />
-                  </div>
-                </div>
-
-                {/* Purchase Order Fields */}
-                <div className="space-y-2">
-                  <h4 className="text-sm font-bold">Purchase Order Fields</h4>
-                  <div className="grid grid-cols-2 gap-4">
+                  </TabsContent>
+                  <TabsContent value="purchaseOrderData" className="mt-4">
                     <UploadZone tab="purchaseOrderData" isExtracting={extractingPurchaseOrderData} />
-                  </div>
-                </div>
+                  </TabsContent>
+                </Tabs>
 
-                {customFields.length > 0 && (
+                {filteredFields.length > 0 && (
                   <>
-                    <Tabs value={activeFieldTab} onValueChange={(v) => setActiveFieldTab(v as CustomFieldTab)}>
-                      <TabsList>
-                        <TabsTrigger value="consignmentData">
-                          Consignment Data ({customFields.filter((f) => f.tab === "consignmentData").length})
-                        </TabsTrigger>
-                        <TabsTrigger value="consignmentItem">
-                          Consignment Item ({customFields.filter((f) => f.tab === "consignmentItem").length})
-                        </TabsTrigger>
-                        <TabsTrigger value="saleOrderData">
-                          Sale Order Data ({customFields.filter((f) => f.tab === "saleOrderData").length})
-                        </TabsTrigger>
-                        <TabsTrigger value="purchaseOrderData">
-                          Purchase Order Data ({customFields.filter((f) => f.tab === "purchaseOrderData").length})
-                        </TabsTrigger>
-                      </TabsList>
-                    </Tabs>
-
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -465,13 +453,6 @@ const TenantDetailPage = () => {
                             </TableRow>
                           );
                         })}
-                        {filteredFields.length === 0 && (
-                          <TableRow>
-                            <TableCell colSpan={6} className="text-center text-muted-foreground py-4">
-                              No fields for this tab. Upload a screenshot to extract them.
-                            </TableCell>
-                          </TableRow>
-                        )}
                       </TableBody>
                     </Table>
 
