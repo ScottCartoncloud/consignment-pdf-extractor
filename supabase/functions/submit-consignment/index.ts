@@ -179,7 +179,6 @@ serve(async (req) => {
             requiredDate: payload.collectRequiredDate || undefined,
           },
           instructions: payload.instructions || "",
-          ...payload.details,
         },
         properties: payload.properties || {},
         items: (payload.items || []).map((item: any) => ({
@@ -210,7 +209,6 @@ serve(async (req) => {
         details: {
           arrivalDate: payload.arrivalDate || undefined,
           instructions: payload.instructions || "",
-          ...payload.details,
         },
         properties: payload.properties || {},
         items: (payload.items || []).map((item: any) => ({
