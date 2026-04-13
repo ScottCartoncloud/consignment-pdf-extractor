@@ -238,8 +238,12 @@ const CustomerDetailPage = () => {
     }
   };
 
-  const consignmentDataFields = customFieldSchema.filter((f) => f.tab === "consignmentData");
-  const consignmentItemFields = customFieldSchema.filter((f) => f.tab === "consignmentItem");
+  const relevantCustomFields = customFieldSchema.filter((f) => {
+    if (form.entity_type === "consignment") return f.tab === "consignmentData" || f.tab === "consignmentItem";
+    if (form.entity_type === "sale_order") return f.tab === "saleOrderData";
+    if (form.entity_type === "purchase_order") return f.tab === "purchaseOrderData";
+    return false;
+  });
 
   return (
     <div className="p-6 space-y-6 max-w-[1400px] mx-auto">
@@ -339,14 +343,14 @@ const CustomerDetailPage = () => {
           />
 
           {/* Custom fields section */}
-          {sampleExtraction && consignmentDataFields.length > 0 && (
+          {sampleExtraction && relevantCustomFields.length > 0 && (
             <Card>
               <CardHeader className="py-3 px-4">
                 <CardTitle className="text-sm">Custom Fields</CardTitle>
               </CardHeader>
               <CardContent className="px-4 pb-4">
                 <div className="grid grid-cols-2 gap-2">
-                  {consignmentDataFields.map((f) => (
+                  {relevantCustomFields.map((f) => (
                     <div key={f.fieldName}>
                       <Label className="text-xs">{f.name}</Label>
                       <Input
@@ -423,14 +427,14 @@ const CustomerDetailPage = () => {
             />
 
             {/* Custom fields section */}
-            {uploadExtraction && consignmentDataFields.length > 0 && (
+            {uploadExtraction && relevantCustomFields.length > 0 && (
               <Card>
                 <CardHeader className="py-3 px-4">
                   <CardTitle className="text-sm">Custom Fields</CardTitle>
                 </CardHeader>
                 <CardContent className="px-4 pb-4">
                   <div className="grid grid-cols-2 gap-2">
-                    {consignmentDataFields.map((f) => (
+                    {relevantCustomFields.map((f) => (
                       <div key={f.fieldName}>
                         <Label className="text-xs">{f.name}</Label>
                         <Input
