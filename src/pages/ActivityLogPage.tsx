@@ -229,7 +229,7 @@ const ActivityLogPage = () => {
                   value={searchRef}
                   onChange={(e) => setSearchRef(e.target.value)}
                   placeholder="Search reference…"
-                  className="pl-8 w-[180px]"
+                  className="pl-8 w-[150px]"
                 />
               </div>
             </div>
@@ -238,7 +238,7 @@ const ActivityLogPage = () => {
             <div className="space-y-1.5">
               <Label className="text-xs">Customer</Label>
               <Select value={filterCustomer} onValueChange={setFilterCustomer}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-[160px]">
                   <SelectValue placeholder="All customers" />
                 </SelectTrigger>
                 <SelectContent>
