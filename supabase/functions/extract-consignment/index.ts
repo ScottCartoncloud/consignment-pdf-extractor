@@ -35,7 +35,7 @@ If there is only one consignment, return the single object as before with no wra
 }
 
 function buildSaleOrderPrompt(defaultCountry: string) {
-  return `You are a sale order data extraction assistant. Given a PDF document, extract sale order information and return a JSON object matching this exact structure:
+  return `You are a sale order data extraction assistant. Given a PDF document, extract sale order information and return a JSON object matching this EXACT structure:
 
 {
   "references": { "customer": "" },
@@ -47,9 +47,12 @@ function buildSaleOrderPrompt(defaultCountry: string) {
   "warehouse": ""
 }
 
+CRITICAL: Return EXACTLY the JSON structure shown above. Do not attempt to build a CartonCloud API payload. Do not nest data under "details", "customer", "measures", or "properties". Use the flat structure shown above with top-level keys only.
+
 Rules:
-- Extract all available fields from the document
+- The "deliverAddress" object is REQUIRED. Extract the ship-to / delivery address from the document and populate all address fields (companyName, address1, suburb, state, postcode, country). Do not skip this even if the address seems incomplete.
 - For references.customer, extract the sale order number, SO number, or primary order reference
+- Items must be a flat array with "code", "description", "quantity", "unitOfMeasure" at the top level of each item object. Do not nest under details/measures/properties.
 - For items, always extract the product code/SKU/item number into "code". This is required.
 - Use "UNITS" as the default unitOfMeasure unless the document specifies otherwise (e.g. CASES, PALLETS, CARTONS, EACH)
 - Use 0 for numeric fields if not found
@@ -66,7 +69,7 @@ If there is only one, return the single object with no wrapper.`;
 }
 
 function buildPurchaseOrderPrompt(defaultCountry: string) {
-  return `You are a purchase order data extraction assistant. Given a PDF document, extract purchase order / inbound order information and return a JSON object matching this exact structure:
+  return `You are a purchase order data extraction assistant. Given a PDF document, extract purchase order / inbound order information and return a JSON object matching this EXACT structure:
 
 {
   "references": { "customer": "" },
@@ -76,9 +79,11 @@ function buildPurchaseOrderPrompt(defaultCountry: string) {
   "warehouse": ""
 }
 
+CRITICAL: Return EXACTLY the JSON structure shown above. Do not attempt to build a CartonCloud API payload. Do not nest data under "details", "customer", "measures", or "properties". Use the flat structure shown above with top-level keys only.
+
 Rules:
-- Extract all available fields from the document
 - For references.customer, extract the PO number, job number, or primary order reference
+- Items must be a flat array with "code", "description", "quantity", "unitOfMeasure", "batch", "expiryDate" at the top level of each item object. Do not nest under details/measures/properties.
 - For items, always extract the product code/SKU/item number into "code". This is required.
 - Use "UNITS" as the default unitOfMeasure unless the document specifies otherwise (e.g. CASES, PALLETS, CARTONS, EACH)
 - Extract batch numbers and expiry dates per item if present, empty string if not
@@ -91,6 +96,126 @@ Rules:
 If the document contains multiple separate purchase orders, return them as:
 { "orders": [ {...}, {...} ] }
 If there is only one, return the single object with no wrapper.`;
+}
+
+// Normalize a sale order extraction if the AI returned a CC API-shaped payload
+// instead of the flat intermediate structure we asked for
+function normalizeSaleOrder(entity: any): any {
+  // If it already has deliverAddress at top level with actual data, it's probably fine
+  if (entity.deliverAddress && entity.deliverAddress.companyName) {
+    // Still normalize items in case they're nested
+    if (entity.items) {
+      entity.items = entity.items.map(normalizeItem);
+    }
+    return entity;
+  }
+
+  const normalized: any = {
+    references: entity.references || { customer: "" },
+    deliverAddress: { companyName: "", contactName: "", address1: "", suburb: "", state: "", postcode: "", country: "", instructions: "" },
+    items: [],
+    deliverRequiredDate: entity.deliverRequiredDate || "",
+    collectRequiredDate: entity.collectRequiredDate || "",
+    instructions: entity.instructions || "",
+    warehouse: entity.warehouse?.name || entity.warehouse || "",
+    customFields: entity.customFields || undefined,
+  };
+
+  // Unwrap deliver address from details.deliver.address
+  const deliverAddr = entity.details?.deliver?.address;
+  if (deliverAddr) {
+    normalized.deliverAddress = {
+      companyName: deliverAddr.companyName || "",
+      contactName: deliverAddr.contactName || "",
+      address1: deliverAddr.address1 || "",
+      suburb: deliverAddr.suburb || "",
+      state: typeof deliverAddr.state === "object" ? deliverAddr.state?.name || "" : deliverAddr.state || "",
+      postcode: deliverAddr.postcode || "",
+      country: typeof deliverAddr.country === "object" ? deliverAddr.country?.name || "" : deliverAddr.country || "",
+      instructions: deliverAddr.instructions || entity.details?.deliver?.instructions || "",
+    };
+  }
+
+  // Unwrap dates
+  if (!normalized.deliverRequiredDate) {
+    normalized.deliverRequiredDate = entity.details?.deliver?.requiredDate || "";
+  }
+  if (!normalized.collectRequiredDate) {
+    normalized.collectRequiredDate = entity.details?.collect?.requiredDate || "";
+  }
+
+  // Unwrap instructions
+  if (!normalized.instructions) {
+    normalized.instructions = entity.details?.instructions || entity.details?.deliver?.instructions || "";
+  }
+
+  // Unwrap references
+  if (entity.references?.customer) {
+    normalized.references.customer = entity.references.customer;
+  }
+
+  // Normalize items from nested CC API shape to flat shape
+  if (entity.items && Array.isArray(entity.items)) {
+    normalized.items = entity.items.map(normalizeItem);
+  }
+
+  return normalized;
+}
+
+// Normalize a purchase order extraction if the AI returned a CC API-shaped payload
+function normalizePurchaseOrder(entity: any): any {
+  // If items already have flat "code" field, it's probably fine
+  const firstItem = entity.items?.[0];
+  if (firstItem && typeof firstItem.code === "string" && !firstItem.details) {
+    return entity;
+  }
+
+  const normalized: any = {
+    references: entity.references || { customer: "" },
+    items: [],
+    arrivalDate: entity.arrivalDate || "",
+    instructions: entity.instructions || "",
+    warehouse: entity.warehouse?.name || entity.warehouse || "",
+    customFields: entity.customFields || undefined,
+  };
+
+  // Unwrap arrivalDate from details
+  if (!normalized.arrivalDate) {
+    normalized.arrivalDate = entity.details?.arrivalDate || "";
+  }
+
+  // Unwrap instructions from details
+  if (!normalized.instructions) {
+    normalized.instructions = entity.details?.instructions || "";
+  }
+
+  // Normalize items
+  if (entity.items && Array.isArray(entity.items)) {
+    normalized.items = entity.items.map((item: any) => {
+      const flat = normalizeItem(item);
+      // Also handle PO-specific fields
+      flat.batch = item.batch || item.properties?.batch || "";
+      flat.expiryDate = item.expiryDate || item.properties?.expiryDate || "";
+      return flat;
+    });
+  }
+
+  return normalized;
+}
+
+// Normalize a single item from potentially nested CC API shape to flat shape
+function normalizeItem(item: any): any {
+  // Already flat
+  if (typeof item.code === "string" && typeof item.quantity === "number" && !item.details && !item.measures) {
+    return item;
+  }
+
+  return {
+    code: item.code || item.details?.product?.references?.code || "",
+    description: item.description || item.properties?.description || "",
+    quantity: item.quantity ?? item.measures?.quantity ?? 0,
+    unitOfMeasure: item.unitOfMeasure || item.details?.unitOfMeasure?.type || "UNITS",
+  };
 }
 
 serve(async (req) => {
@@ -243,6 +368,16 @@ Return them in a "customFields" object on the response, keyed by fieldName:
       const isMultiple = extracted.orders && Array.isArray(extracted.orders);
       entities = isMultiple ? extracted.orders : [extracted];
     }
+
+    // Normalize entities to expected flat structure if AI returned CC API-shaped payload
+    entities = entities.map((entity: any) => {
+      if (entityType === "sale_order") {
+        return normalizeSaleOrder(entity);
+      } else if (entityType === "purchase_order") {
+        return normalizePurchaseOrder(entity);
+      }
+      return entity;
+    });
 
     // Save drafts only for real uploads (when customerProfileId is provided)
     const draftIds: string[] = [];
