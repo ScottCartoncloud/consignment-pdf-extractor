@@ -25,6 +25,7 @@ interface DraftRow {
   mapped_payload: any;
   cc_response: any;
   raw_extraction: any;
+  entity_type: string;
 }
 
 interface ProfileOption {
@@ -34,12 +35,25 @@ interface ProfileOption {
 
 const PAGE_SIZE = 20;
 
+const ENTITY_TYPE_LABELS: Record<string, string> = {
+  consignment: "Consignment",
+  sale_order: "Sale Order",
+  purchase_order: "Purchase Order",
+};
+
+const entityTypeBadgeClass = (et: string) => {
+  if (et === "sale_order") return "bg-blue-100 text-blue-800";
+  if (et === "purchase_order") return "bg-green-100 text-green-800";
+  return "";
+};
+
 const ActivityLogPage = () => {
   const [drafts, setDrafts] = useState<DraftRow[]>([]);
   const [profiles, setProfiles] = useState<ProfileOption[]>([]);
   const [profileMap, setProfileMap] = useState<Record<string, string>>({});
   const [filterCustomer, setFilterCustomer] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [filterEntityType, setFilterEntityType] = useState("all");
   const [searchRef, setSearchRef] = useState("");
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
   const [dateTo, setDateTo] = useState<Date | undefined>();
@@ -67,11 +81,12 @@ const ActivityLogPage = () => {
     setLoading(true);
     let query = supabase
       .from("consignment_drafts")
-      .select("id, status, source, created_at, from_email, error_message, customer_profile_id, mapped_payload, cc_response, raw_extraction", { count: "exact" })
+      .select("id, status, source, created_at, from_email, error_message, customer_profile_id, mapped_payload, cc_response, raw_extraction, entity_type", { count: "exact" })
       .in("status", filterStatus !== "all" ? [filterStatus] : ["submitted", "failed"])
 
     if (filterCustomer !== "all") query = query.eq("customer_profile_id", filterCustomer);
     if (filterStatus !== "all") query = query.eq("status", filterStatus);
+    if (filterEntityType !== "all") query = query.eq("entity_type", filterEntityType);
     if (dateFrom) query = query.gte("created_at", dateFrom.toISOString());
     if (dateTo) {
       const end = new Date(dateTo);
@@ -85,12 +100,12 @@ const ActivityLogPage = () => {
     if (data) setDrafts(data as DraftRow[]);
     if (count !== null) setTotalCount(count);
     setLoading(false);
-  }, [filterCustomer, filterStatus, dateFrom, dateTo, page]);
+  }, [filterCustomer, filterStatus, filterEntityType, dateFrom, dateTo, page]);
 
   useEffect(() => { fetchDrafts(); }, [fetchDrafts]);
 
   // Reset to page 0 when filters change
-  useEffect(() => { setPage(0); }, [filterCustomer, filterStatus, dateFrom, dateTo, searchRef]);
+  useEffect(() => { setPage(0); }, [filterCustomer, filterStatus, filterEntityType, dateFrom, dateTo, searchRef]);
 
   // Client-side reference filter (reference is inside JSON)
   const filtered = searchRef.trim()
@@ -112,20 +127,20 @@ const ActivityLogPage = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `consignment-${d.id.slice(0, 8)}.json`;
+    const prefix = d.entity_type === "sale_order" ? "sale-order" : d.entity_type === "purchase_order" ? "purchase-order" : "consignment";
+    a.download = `${prefix}-${d.id.slice(0, 8)}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
   const handleRetry = async (d: DraftRow) => {
     if (!d.customer_profile_id || !d.raw_extraction) {
-      toast.error("Missing data to retry this consignment");
+      toast.error("Missing data to retry this submission");
       return;
     }
 
     setRetryingId(d.id);
     try {
-      // Fetch the customer profile to get tenant_id and cc_customer_id
       const { data: profile } = await supabase
         .from("customer_profiles")
         .select("tenant_id, cc_customer_id")
@@ -143,13 +158,13 @@ const ActivityLogPage = () => {
       };
 
       const { data, error } = await supabase.functions.invoke("submit-consignment", {
-        body: { payload, draftId: d.id, tenantId: profile.tenant_id },
+        body: { payload, draftId: d.id, tenantId: profile.tenant_id, entityType: d.entity_type || "consignment" },
       });
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      toast.success("Consignment resubmitted successfully");
+      toast.success(`${ENTITY_TYPE_LABELS[d.entity_type] || "Entry"} resubmitted successfully`);
       fetchDrafts();
     } catch (err: any) {
       toast.error(`Retry failed: ${err.message || "Unknown error"}`);
@@ -158,6 +173,8 @@ const ActivityLogPage = () => {
       setRetryingId(null);
     }
   };
+
+  const hasActiveFilters = dateFrom || dateTo || searchRef || filterCustomer !== "all" || filterStatus !== "all" || filterEntityType !== "all";
 
   return (
     <div className="max-w-6xl mx-auto p-6">
@@ -244,14 +261,29 @@ const ActivityLogPage = () => {
                   <SelectItem value="all">All</SelectItem>
                   <SelectItem value="submitted">Success</SelectItem>
                   <SelectItem value="failed">Error</SelectItem>
-                  
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Entity type filter */}
+            <div className="space-y-1.5">
+              <Label className="text-xs">Type</Label>
+              <Select value={filterEntityType} onValueChange={setFilterEntityType}>
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue placeholder="All types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All types</SelectItem>
+                  <SelectItem value="consignment">Consignment</SelectItem>
+                  <SelectItem value="sale_order">Sale Order</SelectItem>
+                  <SelectItem value="purchase_order">Purchase Order</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             {/* Clear filters */}
-            {(dateFrom || dateTo || searchRef || filterCustomer !== "all" || filterStatus !== "all") && (
-              <Button variant="ghost" size="sm" onClick={() => { setDateFrom(undefined); setDateTo(undefined); setSearchRef(""); setFilterCustomer("all"); setFilterStatus("all"); }}>
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" onClick={() => { setDateFrom(undefined); setDateTo(undefined); setSearchRef(""); setFilterCustomer("all"); setFilterStatus("all"); setFilterEntityType("all"); }}>
                 Clear
               </Button>
             )}
@@ -271,6 +303,7 @@ const ActivityLogPage = () => {
                   <TableHead>Customer</TableHead>
                   <TableHead>Reference</TableHead>
                   <TableHead>Source</TableHead>
+                  <TableHead>Type</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -279,6 +312,7 @@ const ActivityLogPage = () => {
                   const isExpanded = expandedId === d.id;
                   const isError = d.status === "failed";
                   const isSuccess = d.status === "submitted";
+                  const etLabel = ENTITY_TYPE_LABELS[d.entity_type] || "Consignment";
 
                   return [
                     <TableRow
@@ -306,6 +340,11 @@ const ActivityLogPage = () => {
                         <Badge variant="outline" className="text-xs">{d.source}</Badge>
                       </TableCell>
                       <TableCell>
+                        <Badge variant="outline" className={cn("text-xs", entityTypeBadgeClass(d.entity_type))}>
+                          {etLabel}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
                         {isSuccess && (
                           <Badge className="bg-green-600 text-white hover:bg-green-700 border-0">
                             Success
@@ -323,7 +362,7 @@ const ActivityLogPage = () => {
                     </TableRow>,
                     isExpanded && isError ? (
                       <TableRow key={`${d.id}-detail`}>
-                        <TableCell colSpan={6} className="bg-red-50 border-l-4 border-red-400 py-4 px-6">
+                        <TableCell colSpan={7} className="bg-red-50 border-l-4 border-red-400 py-4 px-6">
                           <div className="space-y-3">
                             <div>
                               <p className="text-xs font-semibold text-red-800 uppercase tracking-wide mb-1">Error Message</p>
